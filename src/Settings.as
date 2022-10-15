@@ -4,6 +4,9 @@ uint S_MiniMapSize = Draw::GetHeight() / 3;
 [Setting category="MiniMap" name="Grid Partitions" description="How many partitions to break the minimap grid up into along X/Y axes. Worst case O(n^2) complexity: higher values => much higher performance cost. Example render times: 160: ~10ms, 80: 4.1ms, 40: 1.6ms, 20: <1.0ms" min="20" max="200"]
 uint S_MiniMapGridParts = 50;
 
+[Setting category="MiniMap" name="Draw Grid Lines"]
+bool S_DrawGridLines = true;
+
 [Setting category="MiniMap" name="Screen Location (%)" description="Where on the screen to draw the minimap (%). Drag the values to change." drag min="0" max="100"]
 vec2 S_MiniMapPosition = (GetScreenWH() - F2Vec(float(S_MiniMapSize) + 50)) / GetScreenWH() * 100;
 

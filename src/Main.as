@@ -1,7 +1,6 @@
 void Main() {
     startnew(MainLoop);
     startnew(Map::UpdateMapInfoLoop);
-    Map::RegisterMapChangeCb(MiniMap::MiniMapStart);
 }
 
 void MainLoop() {
@@ -34,6 +33,6 @@ UI::InputBlocking OnKeyPress(bool down, VirtualKey key) {
 }
 
 void OnSettingsChanged() {
-    if (GetApp().CurrentPlayground !is null)
+    if (GetApp().CurrentPlayground !is null && MiniMap::minimapPlayerObservations.Length != S_MiniMapGridParts)
         startnew(MiniMap::MiniMapStart);
 }

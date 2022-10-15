@@ -6,6 +6,8 @@ namespace MiniMap {
     array<array<uint>> minimapPlayerObservations;
     bool mmStateInitialized = false;
     uint debugLogCount = 0;
+    array<vec3> blockPositions;
+    array<int2> blockGridPositions;
 
     void ClearMiniMapState() {
         mmStateInitialized = false;
@@ -18,14 +20,15 @@ namespace MiniMap {
                 xs[x] = 0;
             }
         }
+        seenBlocks.DeleteAll();
         trace("cleared minimap state.");
     }
 
     void InitGrid() {
-        minimapPlayerObservations.Resize(S_MiniMapGridParts + 1);
+        minimapPlayerObservations.Resize(S_MiniMapGridParts);
         for (uint i = 0; i < minimapPlayerObservations.Length; i++) {
             auto item = minimapPlayerObservations[i];
-            item.Resize(S_MiniMapGridParts + 1);
+            item.Resize(S_MiniMapGridParts);
             for (uint j = 0; j < item.Length; j++) {
                 item[j] = 0;
             }
@@ -44,6 +47,8 @@ namespace MiniMap {
             yield();
         }
         trace("Found " + cpPositions.Length + " unique CPs to draw.");
+        // blockPositions = GetBlockPositions();
+        // trace("Found " + blockPositions.Length + " block positions to draw.");
 
         // calc map boundaries
         min = cpPositions[0]; // always >= min
@@ -81,6 +86,7 @@ namespace MiniMap {
             min.x -= d/2;
         }
 
+        ConvertBlockPositions();
         // ready to draw; handled by UpdateMiniMap
         mmStateInitialized = true;
         return;
@@ -96,8 +102,11 @@ namespace MiniMap {
     void Render() {
         if (S_MiniMapState == 0) return;
         if (!mmStateInitialized) return;
+        if (S_DrawGridLines)
+            DrawMMGrid();  // ~0.15ms draw time with 50 cols
         DrawMiniMapBackground();
         DrawMiniMapPlayerObservations();
+        // DrawMiniMapBlocks();
         DrawMiniMapCheckpoints();
         DrawMiniMapPlayers();
         DrawMiniMapCamera();
@@ -112,15 +121,18 @@ namespace MiniMap {
 #endif
     }
 
+    void ConvertBlockPositions() {
+        blockGridPositions.RemoveRange(0, blockGridPositions.Length);
+        for (uint i = 0; i < blockPositions.Length; i++) {
+            blockGridPositions.InsertLast(WorldToGridPos(blockPositions[i]));
+        }
+    }
+
     vec2 tl;
     vec2 wh;
-    // vec2 bigTL;
-    // vec2 bigWH;
     float sideLen;
     float spacing;
     bool bigMiniMap = false;
-    // vec2 get_tl() { return bigMiniMap ? bigTL : _tl; }
-    // vec2 get_wh() { return bigMiniMap ? bigWH : _wh; }
 
     void PrepMinMapVars() {
         sideLen = bigMiniMap ? Draw::GetHeight()/2 : S_MiniMapSize;
@@ -129,7 +141,7 @@ namespace MiniMap {
         tl = bigMiniMap ? (GetScreenWH() - wh) / 2 : GetScreenWH() * S_MiniMapPosition / 100;
     }
 
-    uint onPlayerTick = 3 * S_MiniMapGridParts;
+    uint get_onPlayerTick() { return 3 * S_MiniMapGridParts; }
     // for keeping track of where are player hotspots
     float avgObvsPerSquare;
     const uint tickDown = 1;
@@ -148,11 +160,33 @@ namespace MiniMap {
         return int2(int(gridPos.x), int(gridPos.z));
     }
 
+    vec2 WorldToGridPosF(vec3 world) {
+        auto gridPos = (world - min) / maxXZLen * S_MiniMapGridParts;
+        return vec2(gridPos.x, gridPos.z); // +- 0.5?
+    }
+
     void ObservePlayerInWorld(vec3 pos) {
-        auto gridPos = WorldToGridPos(pos);
-        if (gridPos.x < 0 || gridPos.x > int(S_MiniMapGridParts)) return;
-        if (gridPos.y < 0 || gridPos.y > int(S_MiniMapGridParts)) return;
-        minimapPlayerObservations[gridPos.y][gridPos.x] += onPlayerTick;
+        auto gridPos = WorldToGridPosF(pos);
+        if (gridPos.x < 0 || gridPos.x > float(S_MiniMapGridParts)) return;
+        if (gridPos.y < 0 || gridPos.y > float(S_MiniMapGridParts)) return;
+        NotePlayerAt(gridPos);
+    }
+    void NotePlayerAt(vec2 p) {
+        // we overlap 4 coords
+        auto xr = p.x % 1;
+        auto yb = p.y % 1;
+        auto rb = xr * yb;
+        auto rt = xr * (1 - yb);
+        auto lb = (1-xr) * yb;
+        auto lt = (1 - xr) * (1 - yb);
+        auto x = int(p.x);
+        auto y = int(p.y);
+        if (x < 0 || x > S_MiniMapGridParts || y < 0 || y > S_MiniMapGridParts) return;
+        minimapPlayerObservations[y][x] += uint(lt * onPlayerTick);
+        if (x+1 < S_MiniMapGridParts) minimapPlayerObservations[y][x+1] += uint(rt * onPlayerTick);
+        if (y+1 < S_MiniMapGridParts) minimapPlayerObservations[y+1][x] += uint(lb * onPlayerTick);
+        if (x+1 < S_MiniMapGridParts && y+1 < S_MiniMapGridParts)
+            minimapPlayerObservations[y+1][x+1] += uint(rb * onPlayerTick);
     }
 
     /* main drawing logic */
@@ -168,7 +202,6 @@ namespace MiniMap {
     }
 
     void DrawMiniMapPlayerObservations() {
-        DrawMMGrid();  // 30% draw time with ~30 cols
         uint totObs = 0; // totalObservations
         uint maxObs = 0;
         for (uint y = 0; y < minimapPlayerObservations.Length; y++) {
@@ -189,9 +222,15 @@ namespace MiniMap {
         avgObvsPerSquare = float(totObs) / totalSqs;
     }
 
+    void DrawMiniMapBlocks() {
+        // for (uint i = 0; i < blockGridPositions.Length; i++) {
+        //     DrawPlayerAt(blockGridPositions[i], vec4(1,0,0,1));
+        // }
+    }
+
     void DrawMiniMapCheckpoints() {
         for (uint i = 0; i < cpPositions.Length; i++) {
-            DrawCpAt(WorldToGridPos(cpPositions[i]));
+            DrawPlayerAt(WorldToGridPosF(cpPositions[i]), S_CP_Color);
         }
     }
 
@@ -199,12 +238,12 @@ namespace MiniMap {
         if (GetApp().GameScene is null) return;
         auto viss = VehicleState::GetAllVis(GetApp().GameScene);
         for (uint i = 0; i < viss.Length; i++) {
-            DrawPlayerAt(WorldToGridPos(viss[i].AsyncState.Position));
+            DrawPlayerAt(WorldToGridPosF(viss[i].AsyncState.Position));
         }
     }
 
     void DrawMiniMapCamera() {
-        DrawPlayerAt(WorldToGridPos(Camera::GetCurrentPosition()), S_Camera_Color);
+        DrawPlayerAt(WorldToGridPosF(Camera::GetCurrentPosition()), S_Camera_Color);
     }
 
     /* drawing helpers */
@@ -222,7 +261,6 @@ namespace MiniMap {
     vec4 GridSqColor(uint count) {
         if (count == 0) return vec4();
         auto ret = F4Vec(Math::Max(1.0, float(count) / 30.0)) * vec4(.5, .5, .5, .2);
-        // ret.w /= 3.0;
         return ret;
     }
 
@@ -257,7 +295,11 @@ namespace MiniMap {
     }
 
     void DrawPlayerAt(int2 pos, vec4 col = S_Player_Color) {
-        vec4 rect = GetMMPosRect(vec2(pos.x, pos.y));
+        DrawPlayerAt(vec2(pos.x, pos.y), col);
+    }
+
+    void DrawPlayerAt(vec2 pos, vec4 col = S_Player_Color) {
+        vec4 rect = GetMMPosRect(pos);
         nvg::BeginPath();
         nvg::Rect(rect.x, rect.y, rect.z, rect.w);
         nvg::FillColor(col);
