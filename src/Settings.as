@@ -3,6 +3,9 @@ uint S_MiniMapSize = 0;
 
 uint InitMiniMapSize() { return  Draw::GetHeight() / 3; }
 
+[Setting category="MiniMap" name="Big Map Size (px)" description="Size of the minimap when it is in 'big' mode" min="100" max="3000"]
+uint S_BigMiniMapSize = 0;
+
 [Setting category="MiniMap" name="Grid Partitions" description="How many partitions to break the minimap grid up into along X/Y axes. Worst case O(n^2) complexity: higher values => much higher performance cost. Example render times: 160: ~10ms, 80: 4.1ms, 40: 1.6ms, 20: <1.0ms" min="20" max="200"]
 uint S_MiniMapGridParts = 50;
 
@@ -34,13 +37,13 @@ vec4 S_Player_Color = vec4(0.875f, 0.058f, 0.711f, 0.843f);
 [Setting category="Appearance" name="Camera Color" color]
 vec4 S_Camera_Color = vec4(0.931f, 0.464f, 0.061f, 1.000f);
 
-[Setting category="Appearance" name="CP Size" min="1" max="40"]
+[Setting category="Appearance" name="CP Size" min="1" max="40" description="Scaled to pixels at 1080p"]
 float S_CP_Size = 10.0;
 
-[Setting category="Appearance" name="Player Size" min="1" max="40"]
+[Setting category="Appearance" name="Player Size" min="1" max="40" description="Scaled to pixels at 1080p"]
 float S_Player_Size = 10.0;
 
-[Setting category="Appearance" name="Camera Size" min="1" max="40"]
+[Setting category="Appearance" name="Camera Size" min="1" max="40" description="Scaled to pixels at 1080p"]
 float S_Camera_Size = 10.0;
 
 enum MiniMapShapes {

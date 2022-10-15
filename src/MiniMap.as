@@ -125,7 +125,7 @@ namespace MiniMap {
     bool bigMiniMap = false;
 
     void PrepMinMapVars() {
-        sideLen = bigMiniMap ? Draw::GetHeight()/2 : S_MiniMapSize;
+        sideLen = bigMiniMap ? S_BigMiniMapSize : S_MiniMapSize;
         spacing = sideLen / S_MiniMapGridParts;
         wh = F2Vec(sideLen);
         tl = bigMiniMap ? (GetScreenWH() - wh) / 2 : GetScreenWH() * S_MiniMapPosition / 100;
@@ -133,7 +133,7 @@ namespace MiniMap {
 
     uint get_onPlayerTick() { return 3 * S_MiniMapGridParts; }
     // for keeping track of where are player hotspots
-    float avgObvsPerSquare;
+    float avgObvsPerSquare = 1;
     const uint tickDown = 1;
 
     void ObservePlayers() {
@@ -252,8 +252,8 @@ namespace MiniMap {
     }
 
     vec4 GridSqColor(uint count) {
-        if (count == 0) return vec4();
-        auto ret = F4Vec(Math::Min(1.0, float(count) / 200.0));
+        if (count == 0 || avgObvsPerSquare < 0.0001) return vec4();
+        auto ret = F4Vec(Math::Min(1.0, float(count) / avgObvsPerSquare));
         return ret;
     }
 
@@ -284,6 +284,7 @@ namespace MiniMap {
     }
 
     void DrawMarkerAt(vec2 pos, vec4 col, MiniMapShapes shape, float size) {
+        size = size * Draw::GetHeight() / 1080.0 * (bigMiniMap ? float(S_BigMiniMapSize) / float(S_MiniMapSize) : 1.0);
         vec4 rect = GetMMPosRect(pos + F2Vec(.5));
         nvg::BeginPath();
         switch (shape) {

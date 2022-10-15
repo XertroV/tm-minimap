@@ -45,6 +45,9 @@ void UpdateDefaultSettings() {
     if (S_MiniMapPosition.LengthSquared() == 0) {
         Recalc_S_MiniMapPosition();
     }
+    if (S_BigMiniMapSize == 0) {
+        S_BigMiniMapSize = Math::Min(Draw::GetHeight(), Draw::GetWidth()) / 1.5;
+    }
 }
 
 void InitSettings() {
@@ -53,5 +56,7 @@ void InitSettings() {
     yield();
     yield();
     yield();
-    OnSettingsChanged();
+    UpdateDefaultSettings();
+    startnew(MiniMap::MiniMapStart);
+    MiniMap::bigMiniMap = S_MiniMapState == 2;
 }

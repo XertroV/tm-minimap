@@ -4,6 +4,8 @@ vec3 CoordToPos(nat3 coord) {
 
 dictionary seenBlocks;
 
+
+
 // array<vec3> GetBlockPositions() {
 //     auto ret = array<vec3>();
 //     if (GetApp().RootMap is null) return {};
