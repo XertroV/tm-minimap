@@ -1,5 +1,6 @@
 namespace MiniMap {
     array<vec3> cpPositions;
+    array<array<vec3>> linkedCpPositions;
     vec3 min, max; // map boundaries
     float maxXZLen;
     array<array<uint>> minimapPlayerObservations;
@@ -46,6 +47,8 @@ namespace MiniMap {
             yield();
         }
         trace("Found " + cpPositions.Length + " unique CPs to draw.");
+        linkedCpPositions = GetLinkedCheckpointPositions();
+        trace("Found " + linkedCpPositions.Length + " sets of linked CPs to draw.");
         // blockPositions = GetBlockPositions();
         // trace("Found " + blockPositions.Length + " block positions to draw.");
 
@@ -107,6 +110,7 @@ namespace MiniMap {
         DrawMiniMapPlayerObservations();
         // DrawMiniMapBlocks();
         DrawMiniMapCheckpoints();
+        DrawMiniMapCheckpointLinks();
         DrawMiniMapPlayers();
         DrawMiniMapCamera();
     }
@@ -227,6 +231,30 @@ namespace MiniMap {
         }
     }
 
+    void DrawMiniMapCheckpointLinks() {
+        vec2 offset = F2Vec(-.5);
+        nvg::Reset();
+        nvg::BeginPath();
+        for (uint i = 0; i < linkedCpPositions.Length; i++) {
+            auto linkedPoss = linkedCpPositions[i];
+            // trace('linkedPoss of length: ' + linkedPoss.Length);
+            for (uint x = 0; x < linkedPoss.Length; x++) {
+                auto xPos = linkedPoss[x];
+                for (uint y = 0; y < x; y++) {
+                    auto yPos = linkedPoss[y];
+                    // trace('drawing LCP: ' + xPos.ToString() + ' to ' + yPos.ToString());
+                    nvg::MoveTo(GetMMPosRect(WorldToGridPosF(xPos) - offset).xyz.xy);
+                    nvg::LineTo(GetMMPosRect(WorldToGridPosF(yPos) - offset).xyz.xy);
+                }
+            }
+        }
+        nvg::LineCap(nvg::LineCapType::Round);
+        nvg::StrokeWidth(2.5 * ScaleFactor);
+        nvg::StrokeColor(S_Linked_Color);
+        nvg::Stroke();
+        nvg::ClosePath();
+    }
+
     void DrawMiniMapPlayers() {
         if (GetApp().GameScene is null) return;
         auto viss = VehicleState::GetAllVis(GetApp().GameScene);
@@ -284,7 +312,7 @@ namespace MiniMap {
     }
 
     void DrawMarkerAt(vec2 pos, vec4 col, MiniMapShapes shape, float size) {
-        size = size * Draw::GetHeight() / 1080.0 * (bigMiniMap ? float(S_BigMiniMapSize) / float(S_MiniMapSize) : 1.0);
+        size = size * ScaleFactor;
         vec4 rect = GetMMPosRect(pos + F2Vec(.5));
         nvg::BeginPath();
         switch (shape) {
@@ -299,5 +327,9 @@ namespace MiniMap {
         nvg::FillColor(col);
         nvg::Fill();
         nvg::ClosePath();
+    }
+
+    float get_ScaleFactor() {
+        return Draw::GetHeight() / 1080.0 * (bigMiniMap ? float(S_BigMiniMapSize) / float(S_MiniMapSize) : 1.0);
     }
 }

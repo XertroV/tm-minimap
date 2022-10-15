@@ -37,6 +37,9 @@ vec4 S_Player_Color = vec4(0.875f, 0.058f, 0.711f, 0.843f);
 [Setting category="Appearance" name="Camera Color" color]
 vec4 S_Camera_Color = vec4(0.931f, 0.464f, 0.061f, 1.000f);
 
+[Setting category="Appearance" name="Linked CP Indicator Color" color]
+vec4 S_Linked_Color = vec4(0.056f, 0.528f, 0.811f, .4f);
+
 [Setting category="Appearance" name="CP Size" min="1" max="40" description="Scaled to pixels at 1080p"]
 float S_CP_Size = 10.0;
 
