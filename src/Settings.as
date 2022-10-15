@@ -1,5 +1,7 @@
 [Setting category="MiniMap" name="Map Size (px)" description="Size of the minimap" min="100" max="1000"]
-uint S_MiniMapSize = Draw::GetHeight() / 3;
+uint S_MiniMapSize = 0;
+
+uint InitMiniMapSize() { return  Draw::GetHeight() / 3; }
 
 [Setting category="MiniMap" name="Grid Partitions" description="How many partitions to break the minimap grid up into along X/Y axes. Worst case O(n^2) complexity: higher values => much higher performance cost. Example render times: 160: ~10ms, 80: 4.1ms, 40: 1.6ms, 20: <1.0ms" min="20" max="200"]
 uint S_MiniMapGridParts = 50;
@@ -8,10 +10,10 @@ uint S_MiniMapGridParts = 50;
 bool S_DrawGridLines = true;
 
 [Setting category="MiniMap" name="Screen Location (%)" description="Where on the screen to draw the minimap (%). Drag the values to change." drag min="0" max="100"]
-vec2 S_MiniMapPosition = (GetScreenWH() - F2Vec(float(S_MiniMapSize) + 50)) / GetScreenWH() * 100;
+vec2 S_MiniMapPosition = vec2(0, 0);
 
 void Recalc_S_MiniMapPosition(float padding = 50) {
-    S_MiniMapPosition = (GetScreenWH() - F2Vec(float(S_MiniMapSize) + 50)) / GetScreenWH() * 100;
+    S_MiniMapPosition = (GetScreenWH() - F2Vec(float(S_MiniMapSize) + padding)) / GetScreenWH() * 100;
 }
 
 [Setting category="MiniMap" name="Shortcut Key" description="Tap the shortcut key to toggle the map. 3 states: off, small, large"]

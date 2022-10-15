@@ -1,6 +1,7 @@
 void Main() {
     startnew(MainLoop);
     startnew(Map::UpdateMapInfoLoop);
+    startnew(InitSettings);
 }
 
 void MainLoop() {
@@ -33,6 +34,24 @@ UI::InputBlocking OnKeyPress(bool down, VirtualKey key) {
 }
 
 void OnSettingsChanged() {
+    UpdateDefaultSettings();
     if (GetApp().CurrentPlayground !is null && MiniMap::minimapPlayerObservations.Length != S_MiniMapGridParts)
         startnew(MiniMap::MiniMapStart);
+}
+
+void UpdateDefaultSettings() {
+    if (S_MiniMapSize == 0)
+        S_MiniMapSize = InitMiniMapSize();
+    if (S_MiniMapPosition.LengthSquared() == 0) {
+        Recalc_S_MiniMapPosition();
+    }
+}
+
+void InitSettings() {
+    yield();
+    yield();
+    yield();
+    yield();
+    yield();
+    OnSettingsChanged();
 }
