@@ -112,15 +112,6 @@ namespace MiniMap {
         DrawMiniMapCamera();
     }
 
-    void LogMMUpdate() {
-#if DEV
-    if (debugLogCount < 100) {
-        debugLogCount++;
-        trace('MM update called. Initialized? ' + (mmStateInitialized ? 'yes' : 'no'));
-    }
-#endif
-    }
-
     void ConvertBlockPositions() {
         blockGridPositions.RemoveRange(0, blockGridPositions.Length);
         for (uint i = 0; i < blockPositions.Length; i++) {

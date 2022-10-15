@@ -105,7 +105,6 @@ for pluginSrc in ${pluginSources[@]}; do
       rm ./$pluginSrc/info.toml
       _build_dest=$PLUGIN_RELEASE_LOC
       # cp -v $RELEASE_NAME $_build_dest
-      # todo: how do we do the release __defines thing?
       _copy_exit_code="$?"
       ;;
     *)
