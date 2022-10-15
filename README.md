@@ -1,4 +1,4 @@
-# Trackmania Menu Bg Chooser
+# Trackmania Minimap
 
 It's a minimap.
 
