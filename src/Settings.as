@@ -23,11 +23,34 @@ int S_MiniMapState = 1; // 0=off, 1=small, 2=big
 [Setting category="MiniMap" name="Update When Hidden?" description="Keep track of players locations when the minimap is hidden? (Low performance impact; ~0.2ms / frame with 30 players.)"]
 bool S_UpdateWhenHidden = true;
 
-[Setting category="Colors" name="CP Color" color]
+[Setting category="Appearance" name="CP Color" color]
 vec4 S_CP_Color = vec4(0.055f, 0.780f, 0.118f, 1.000f);
 
-[Setting category="Colors" name="Player Color" color]
+[Setting category="Appearance" name="Player Color" color]
 vec4 S_Player_Color = vec4(0.875f, 0.058f, 0.711f, 0.843f);
 
-[Setting category="Colors" name="Camera Color" color]
-vec4 S_Camera_Color = vec4(1, 1, 0, 1);
+[Setting category="Appearance" name="Camera Color" color]
+vec4 S_Camera_Color = vec4(0.931f, 0.464f, 0.061f, 1.000f);
+
+[Setting category="Appearance" name="CP Size" min="1" max="40"]
+float S_CP_Size = 10.0;
+
+[Setting category="Appearance" name="Player Size" min="1" max="40"]
+float S_Player_Size = 10.0;
+
+[Setting category="Appearance" name="Camera Size" min="1" max="40"]
+float S_Camera_Size = 10.0;
+
+enum MiniMapShapes {
+    Circle,
+    Square
+}
+
+[Setting category="Appearance" name="CP Shape"]
+MiniMapShapes S_CP_Shape = MiniMapShapes::Circle;
+
+[Setting category="Appearance" name="Player Shape"]
+MiniMapShapes S_Player_Shape = MiniMapShapes::Circle;
+
+[Setting category="Appearance" name="Camera Shape"]
+MiniMapShapes S_Camera_Shape = MiniMapShapes::Circle;

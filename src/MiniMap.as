@@ -1,5 +1,4 @@
 namespace MiniMap {
-
     array<vec3> cpPositions;
     vec3 min, max; // map boundaries
     float maxXZLen;
@@ -172,11 +171,12 @@ namespace MiniMap {
         auto lt = (1 - xr) * (1 - yb);
         auto x = int(p.x);
         auto y = int(p.y);
-        if (x < 0 || x > S_MiniMapGridParts || y < 0 || y > S_MiniMapGridParts) return;
+        int _max = int(S_MiniMapGridParts);
+        if (x < 0 || x > _max || y < 0 || y > _max) return;
         minimapPlayerObservations[y][x] += uint(lt * onPlayerTick);
-        if (x+1 < S_MiniMapGridParts) minimapPlayerObservations[y][x+1] += uint(rt * onPlayerTick);
-        if (y+1 < S_MiniMapGridParts) minimapPlayerObservations[y+1][x] += uint(lb * onPlayerTick);
-        if (x+1 < S_MiniMapGridParts && y+1 < S_MiniMapGridParts)
+        if (x+1 < _max) minimapPlayerObservations[y][x+1] += uint(rt * onPlayerTick);
+        if (y+1 < _max) minimapPlayerObservations[y+1][x] += uint(lb * onPlayerTick);
+        if (x+1 < _max && y+1 < _max)
             minimapPlayerObservations[y+1][x+1] += uint(rb * onPlayerTick);
     }
 
@@ -195,6 +195,7 @@ namespace MiniMap {
     void DrawMiniMapPlayerObservations() {
         uint totObs = 0; // totalObservations
         uint maxObs = 0;
+        uint reduce;
         for (uint y = 0; y < minimapPlayerObservations.Length; y++) {
             auto xs = minimapPlayerObservations[y];
             for (uint x = 0; x < xs.Length; x++) {
@@ -203,8 +204,9 @@ namespace MiniMap {
                 DrawPlayerObservationCount(vec2(x, y), count);
                 totObs += count;
                 maxObs = Math::Max(count, maxObs);
-                if (count >= tickDown)
-                    xs[x] -= tickDown;
+                reduce = Math::Max(tickDown, uint(xs[x] / S_MiniMapGridParts / 20.0)); // should reduce larger numbers faster than relying on tickdown
+                if (count >= reduce)
+                    xs[x] -= reduce;
                 else
                     xs[x] = 0;
             }
@@ -221,7 +223,7 @@ namespace MiniMap {
 
     void DrawMiniMapCheckpoints() {
         for (uint i = 0; i < cpPositions.Length; i++) {
-            DrawPlayerAt(WorldToGridPosF(cpPositions[i]), S_CP_Color);
+            DrawMarkerAt(WorldToGridPosF(cpPositions[i]), S_CP_Color, S_CP_Shape, S_CP_Size);
         }
     }
 
@@ -229,12 +231,12 @@ namespace MiniMap {
         if (GetApp().GameScene is null) return;
         auto viss = VehicleState::GetAllVis(GetApp().GameScene);
         for (uint i = 0; i < viss.Length; i++) {
-            DrawPlayerAt(WorldToGridPosF(viss[i].AsyncState.Position));
+            DrawMarkerAt(WorldToGridPosF(viss[i].AsyncState.Position), S_Player_Color, S_Player_Shape, S_Player_Size);
         }
     }
 
     void DrawMiniMapCamera() {
-        DrawPlayerAt(WorldToGridPosF(Camera::GetCurrentPosition()), S_Camera_Color);
+        DrawMarkerAt(WorldToGridPosF(Camera::GetCurrentPosition()), S_Camera_Color, S_Camera_Shape, S_Camera_Size);
     }
 
     /* drawing helpers */
@@ -251,7 +253,7 @@ namespace MiniMap {
 
     vec4 GridSqColor(uint count) {
         if (count == 0) return vec4();
-        auto ret = F4Vec(Math::Max(1.0, float(count) / 30.0)) * vec4(.5, .5, .5, .2);
+        auto ret = F4Vec(Math::Min(1.0, float(count) / 200.0));
         return ret;
     }
 
@@ -281,18 +283,18 @@ namespace MiniMap {
         return vec4(xy.x, xy.y, _wh.x, _wh.y);
     }
 
-    void DrawCpAt(int2 pos) {
-        DrawPlayerAt(pos, S_CP_Color);
-    }
-
-    void DrawPlayerAt(int2 pos, vec4 col = S_Player_Color) {
-        DrawPlayerAt(vec2(pos.x, pos.y), col);
-    }
-
-    void DrawPlayerAt(vec2 pos, vec4 col = S_Player_Color) {
-        vec4 rect = GetMMPosRect(pos);
+    void DrawMarkerAt(vec2 pos, vec4 col, MiniMapShapes shape, float size) {
+        vec4 rect = GetMMPosRect(pos + F2Vec(.5));
         nvg::BeginPath();
-        nvg::Rect(rect.x, rect.y, rect.z, rect.w);
+        switch (shape) {
+            case MiniMapShapes::Circle:
+                nvg::Circle(rect.xyz.xy, size / 2);
+            break;
+            case MiniMapShapes::Square:
+            default:
+                nvg::Rect(rect.x, rect.y, size, size);
+            break;
+        }
         nvg::FillColor(col);
         nvg::Fill();
         nvg::ClosePath();
