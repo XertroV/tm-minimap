@@ -89,17 +89,16 @@ vec3[] RipGhost(CGameGhostScript@ ghost) {
     auto startTime = ps.Now;
     auto ghostId = ps.Ghost_Add(ghost, true);
     vec3[] positions = {};
-    // ps.UIManager.UIAll.Spectator_SetForcedTarget_Clear();
-    ps.UIManager.UIAll.Spectator_SetForcedTarget_Ghost(ghostId);
-    ps.UIManager.UIAll.SpectatorForceCameraType = 1;
-    for (int t = -1000; t < ghost.Result.Time+500; t += 200) {
+    uint specCam = ps.UIManager.UIAll.SpectatorForceCameraType;
+    // ps.UIManager.UIAll.SpectatorForceCameraType = 1;
+    // ps.UIManager.UIAll.Spectator_SetForcedTarget_Ghost(ghostId);
+    for (int t = -1000; t < ghost.Result.Time+500; t += 100) {
         ps.Ghosts_SetStartTime(startTime - t);
         yield();
         positions.InsertLast(ps.Ghost_GetPosition(ghostId));
         // yield();
     }
-    ps.UIManager.UIAll.SpectatorForceCameraType = 2;
-    // ps.Ghosts_SetStartTime(0);
+    // ps.UIManager.UIAll.SpectatorForceCameraType = specCam;
     return positions;
 }
 

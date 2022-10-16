@@ -132,7 +132,7 @@ namespace MiniMap {
         }
         yield();
         for (uint i = 0; i < ripGhost.Length; i++) {
-            ObservePlayerInWorld(ripGhost[i], 100);
+            ObservePlayerInWorld(ripGhost[i], 10000);
         }
     }
 
@@ -295,7 +295,7 @@ namespace MiniMap {
 
     vec4 GridSqColor(uint count) {
         if (count == 0 || avgObvsPerSquare < 0.0001) return vec4();
-        auto ret = F4Vec(Math::Min(1.0, float(count) / avgObvsPerSquare));
+        auto ret = F4Vec(Math::Min(1.0, float(count) * S_MiniMapGridParts / 10000));
         return ret;
     }
 
