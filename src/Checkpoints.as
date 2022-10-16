@@ -38,7 +38,7 @@ vec3[][]@ GetLinkedCheckpointPositions() {
     auto linkedPositions = array<array<vec3>>();
     auto lpKeys = lcps.GetKeys();
     for (uint i = 0; i < lpKeys.Length; i++) {
-        linkedPositions.InsertLast(cast<array<vec3>>(lcps[lpKeys[i]]));
+        linkedPositions.InsertLast(cast<vec3[]>(lcps[lpKeys[i]]));
     }
     return linkedPositions;
 }

@@ -39,6 +39,7 @@ namespace MiniMap {
 
     void MiniMapStart() {
         ClearMiniMapState();
+        startnew(TryGettingGhostPositions);
 
         while (cpPositions.Length == 0) {
             // get positions of CPs (waits for them to load)
@@ -67,7 +68,7 @@ namespace MiniMap {
 
         // add a small amount of padding
         vec3 mapSize = max - min;
-        float padding = 0.05;
+        float padding = 0.1;
         min -= mapSize * padding;
         max += mapSize * padding;
 
@@ -122,6 +123,19 @@ namespace MiniMap {
         }
     }
 
+    void TryGettingGhostPositions() {
+        auto ripGhost = GetPathForRootMapFromGhost();
+        trace("Found " + ripGhost.Length + " ripGhost positions to draw.");
+        for (uint i = 0; i < ripGhost.Length; i += 20) {
+            auto item = ripGhost[i];
+            trace("ix:" + i + " -- " + item.ToString());
+        }
+        yield();
+        for (uint i = 0; i < ripGhost.Length; i++) {
+            ObservePlayerInWorld(ripGhost[i], 100);
+        }
+    }
+
     vec2 tl;
     vec2 wh;
     float sideLen;
@@ -159,13 +173,13 @@ namespace MiniMap {
         return vec2(gridPos.x, gridPos.z); // +- 0.5?
     }
 
-    void ObservePlayerInWorld(vec3 pos) {
+    void ObservePlayerInWorld(vec3 pos, float weight = 1.0) {
         auto gridPos = WorldToGridPosF(pos);
         if (gridPos.x < 0 || gridPos.x > float(S_MiniMapGridParts)) return;
         if (gridPos.y < 0 || gridPos.y > float(S_MiniMapGridParts)) return;
-        NotePlayerAt(gridPos);
+        NotePlayerAt(gridPos, weight);
     }
-    void NotePlayerAt(vec2 p) {
+    void NotePlayerAt(vec2 p, float weight = 1.0) {
         // we overlap 4 coords
         auto xr = p.x % 1;
         auto yb = p.y % 1;
@@ -177,11 +191,11 @@ namespace MiniMap {
         auto y = int(p.y);
         int _max = int(S_MiniMapGridParts);
         if (x < 0 || x > _max || y < 0 || y > _max) return;
-        minimapPlayerObservations[y][x] += uint(lt * onPlayerTick);
-        if (x+1 < _max) minimapPlayerObservations[y][x+1] += uint(rt * onPlayerTick);
-        if (y+1 < _max) minimapPlayerObservations[y+1][x] += uint(lb * onPlayerTick);
+        minimapPlayerObservations[y][x] += uint(lt * onPlayerTick * weight);
+        if (x+1 < _max) minimapPlayerObservations[y][x+1] += uint(rt * onPlayerTick * weight);
+        if (y+1 < _max) minimapPlayerObservations[y+1][x] += uint(lb * onPlayerTick * weight);
         if (x+1 < _max && y+1 < _max)
-            minimapPlayerObservations[y+1][x+1] += uint(rb * onPlayerTick);
+            minimapPlayerObservations[y+1][x+1] += uint(rb * onPlayerTick * weight);
     }
 
     /* main drawing logic */
@@ -208,7 +222,7 @@ namespace MiniMap {
                 DrawPlayerObservationCount(vec2(x, y), count);
                 totObs += count;
                 maxObs = Math::Max(count, maxObs);
-                reduce = Math::Max(tickDown, uint(xs[x] / S_MiniMapGridParts / 20.0)); // should reduce larger numbers faster than relying on tickdown
+                reduce = Math::Max(tickDown, uint(float(count) / (S_MiniMapGridParts * 100.0))); // should reduce larger numbers faster than relying on tickdown
                 if (count >= reduce)
                     xs[x] -= reduce;
                 else

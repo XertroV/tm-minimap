@@ -2,8 +2,8 @@
 name     = "MiniMap"
 author   = "XertroV"
 category = "Race"
-version  = "0.1.5"
+version  = "0.1.6"
 
 [script]
 #__DEFINES__
-dependencies = ["VehicleState", "Camera"]
+dependencies = ["VehicleState", "Camera", "NadeoServices"]
