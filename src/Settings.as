@@ -1,3 +1,6 @@
+[Setting category="MiniMap" name="Enable Minimap" description="When unchecked, the minimap can only be enabled via the 'Scripts' menu."]
+bool S_MiniMapEnabled = true;
+
 [Setting category="MiniMap" name="Map Size (px)" description="Size of the minimap" min="100" max="1000"]
 uint S_MiniMapSize = 0;
 
@@ -9,7 +12,13 @@ uint S_BigMiniMapSize = 0;
 [Setting category="MiniMap" name="Grid Partitions" description="How many partitions to break the minimap grid up into along X/Y axes. Worst case O(n^2) complexity: higher values => much higher performance cost. Example render times: 160: ~10ms, 80: 4.1ms, 40: 1.6ms, 20: <1.0ms" min="20" max="200"]
 uint S_MiniMapGridParts = 50;
 
-[Setting category="MiniMap" name="Draw Grid Lines"]
+[Setting category="MiniMap" name="Fade Grid Squares" description="Grid squares are highlighted based on how long players have spent in them, and will fade over time. This prevents weird paths sticking around if someone goes way off track. A bias is applied based on the number of grid partitions."]
+bool S_FadeGridSquares = true;
+
+[Setting category="MiniMap" name="Grid Square Persistence" description="A modifier for how slowly grid squares fade. Higher numbers => longer fade." min="1" max="100"]
+float S_GridSquarePersistence = 20.0;
+
+[Setting category="MiniMap" name="Draw Grid Lines" description="Horizontal and vertical lines outlining each grid square."]
 bool S_DrawGridLines = true;
 
 [Setting category="MiniMap" name="Screen Location (%)" description="Where on the screen to draw the minimap (%). Drag the values to change." drag min="0" max="100"]

@@ -208,7 +208,7 @@ namespace MiniMap {
                 DrawPlayerObservationCount(vec2(x, y), count);
                 totObs += count;
                 maxObs = Math::Max(count, maxObs);
-                reduce = Math::Max(tickDown, uint(xs[x] / S_MiniMapGridParts / 20.0)); // should reduce larger numbers faster than relying on tickdown
+                reduce = !S_FadeGridSquares ? 0 : Math::Max(tickDown, uint(xs[x] / S_MiniMapGridParts / S_GridSquarePersistence)); // should reduce larger numbers faster than relying on tickdown
                 if (count >= reduce)
                     xs[x] -= reduce;
                 else

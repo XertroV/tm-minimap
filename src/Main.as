@@ -8,7 +8,7 @@ void MainLoop() {
     while(true) {
         yield();
         // in map or not in map
-        if (GetApp().CurrentPlayground !is null) {
+        if (S_MiniMapEnabled && GetApp().CurrentPlayground !is null) {
             MiniMap::MiniMapStart();
             // if map loop ends early, then keep going while current playground !is null
             while (GetApp().CurrentPlayground !is null) yield();
@@ -17,16 +17,26 @@ void MainLoop() {
 }
 
 void Update(float dt) {
-    MiniMap::UpdateMiniMap(dt);
+    if (S_MiniMapEnabled)
+        MiniMap::UpdateMiniMap(dt);
+}
+
+/** Render function called every frame intended only for menu items in `UI`.
+*/
+void RenderMenu() {
+    if (UI::MenuItem("\\$e66" + Icons::Map + "\\$z " + Meta::ExecutingPlugin().Name, "", S_MiniMapEnabled)) {
+        S_MiniMapEnabled = !S_MiniMapEnabled;
+    }
 }
 
 void Render() {
-    if (GetApp().RootMap !is null)
+    // if we check GetApp().RootMap here then the minimap can show up in the editor, etc
+    if (S_MiniMapEnabled && GetApp().CurrentPlayground !is null)
         MiniMap::Render();
 }
 
 UI::InputBlocking OnKeyPress(bool down, VirtualKey key) {
-    if (key == S_ShortcutKey && down) {
+    if (S_MiniMapEnabled && key == S_ShortcutKey && down) {
         S_MiniMapState = (S_MiniMapState + 1) % 3; // off, small, big
         MiniMap::bigMiniMap = S_MiniMapState == 2;
     }
