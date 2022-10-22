@@ -83,13 +83,17 @@ vec3[] RipGhost(CGameGhostScript@ ghost) {
         trace("Ghost " + ghost.Nickname + " has a null result. Cannot rip.");
         return {};
     }
-    while (GetApp().RootMap is null) yield();
-    while (GetApp().PlaygroundScript is null) yield();
+    if (GetApp().RootMap is null) return {};
+    if (GetApp().PlaygroundScript is null) return {};
     auto ps = cast<CSmArenaRulesMode>(GetApp().PlaygroundScript);
+    while (ps !is null && ps.UIManager.UIAll.UISequence != CGamePlaygroundUIConfig::EUISequence::Playing) yield();
+    if (ps is null) return {};
+    sleep(5000);
+    while (ps !is null && ps.UIManager.UIAll.UISequence != CGamePlaygroundUIConfig::EUISequence::Playing) yield();
+
     auto startTime = ps.Now;
     auto ghostId = ps.Ghost_Add(ghost, true);
     vec3[] positions = {};
-    uint specCam = ps.UIManager.UIAll.SpectatorForceCameraType;
     // ps.UIManager.UIAll.SpectatorForceCameraType = 1;
     // ps.UIManager.UIAll.Spectator_SetForcedTarget_Ghost(ghostId);
     for (int t = -1000; t < ghost.Result.Time+500; t += 100) {
@@ -98,6 +102,9 @@ vec3[] RipGhost(CGameGhostScript@ ghost) {
         positions.InsertLast(ps.Ghost_GetPosition(ghostId));
         // yield();
     }
+    ps.Ghost_Remove(ghostId);
+    ps.Ghost_Release(ghost.Id);
+    ps.Ghosts_SetStartTime(-1);
     // ps.UIManager.UIAll.SpectatorForceCameraType = specCam;
     return positions;
 }

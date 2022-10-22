@@ -39,7 +39,6 @@ namespace MiniMap {
 
     void MiniMapStart() {
         ClearMiniMapState();
-        startnew(TryGettingGhostPositions);
 
         while (cpPositions.Length == 0) {
             // get positions of CPs (waits for them to load)
