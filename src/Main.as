@@ -8,10 +8,10 @@ void MainLoop() {
     while(true) {
         yield();
         // in map or not in map
-        if (S_MiniMapEnabled && GetApp().CurrentPlayground !is null) {
+        if (S_MiniMapEnabled && (GetApp().CurrentPlayground !is null && GetApp().Editor is null)) {
             MiniMap::MiniMapStart();
             // if map loop ends early, then keep going while current playground !is null
-            while (GetApp().CurrentPlayground !is null) yield();
+            while (GetApp().CurrentPlayground !is null && GetApp().Editor is null) yield();
         }
     }
 }
@@ -31,7 +31,7 @@ void RenderMenu() {
 
 void Render() {
     // if we check GetApp().RootMap here then the minimap can show up in the editor, etc
-    if (S_MiniMapEnabled && GetApp().CurrentPlayground !is null)
+    if (S_MiniMapEnabled && GetApp().CurrentPlayground !is null && GetApp().Editor is null)
         MiniMap::Render();
 }
 

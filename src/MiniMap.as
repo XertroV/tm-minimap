@@ -95,6 +95,7 @@ namespace MiniMap {
     }
 
     void UpdateMiniMap(float dt) {
+        if (GetApp().Editor !is null) return;
         if (!mmStateInitialized) return;
         if (!S_UpdateWhenHidden && S_MiniMapState == 0) return;
         PrepMinMapVars();
