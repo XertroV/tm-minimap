@@ -64,8 +64,15 @@ namespace MiniMap {
             max.y = Math::Max(max.y, pos.y);
             max.z = Math::Max(max.z, pos.z);
         }
+        // if this is true, then the xz area is very small;
+        // it must be non-zero anyway, so pad it out to guarentee it,
+        // and also to provide a minimum minimap size.
+        if (((max - min) * vec3(1, 0, 1)).LengthSquared() < 10000) {
+            max += vec3(50, 0, 50);
+            min -= vec3(50, 0, 50);
+        }
 
-        // add a small amount of padding
+        // add a small amount of padding (sometimes the map route goes outside the cp bounding box)
         vec3 mapSize = max - min;
         float padding = 0.05;
         min -= mapSize * padding;
@@ -95,7 +102,7 @@ namespace MiniMap {
     }
 
     void UpdateMiniMap(float dt) {
-        if (GetApp().Editor !is null) return;
+        if (!IsEditorConditionCheckOkay) return;
         if (!mmStateInitialized) return;
         if (!S_UpdateWhenHidden && S_MiniMapState == 0) return;
         PrepMinMapVars();

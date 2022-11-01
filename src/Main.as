@@ -8,12 +8,17 @@ void MainLoop() {
     while(true) {
         yield();
         // in map or not in map
-        if (S_MiniMapEnabled && (GetApp().CurrentPlayground !is null && GetApp().Editor is null)) {
+        if (S_MiniMapEnabled && (GetApp().CurrentPlayground !is null && IsEditorConditionCheckOkay)) {
             MiniMap::MiniMapStart();
-            // if map loop ends early, then keep going while current playground !is null
-            while (GetApp().CurrentPlayground !is null && GetApp().Editor is null) yield();
+            // if map loop ends early, then don't reset while current playground !is null
+            while (GetApp().CurrentPlayground !is null) yield();
         }
     }
+}
+
+// replaces condition: Editor is null
+bool get_IsEditorConditionCheckOkay() {
+    return S_AllowInEditor || GetApp().Editor is null;
 }
 
 void Update(float dt) {
@@ -31,12 +36,12 @@ void RenderMenu() {
 
 void Render() {
     // if we check GetApp().RootMap here then the minimap can show up in the editor, etc
-    if (S_MiniMapEnabled && GetApp().CurrentPlayground !is null && GetApp().Editor is null)
+    if (S_MiniMapEnabled && GetApp().CurrentPlayground !is null && IsEditorConditionCheckOkay)
         MiniMap::Render();
 }
 
 UI::InputBlocking OnKeyPress(bool down, VirtualKey key) {
-    if (S_MiniMapEnabled && key == S_ShortcutKey && down) {
+    if (S_MiniMapEnabled && key == S_ShortcutKey && down && IsEditorConditionCheckOkay && GetApp().CurrentPlayground !is null) {
         S_MiniMapState = (S_MiniMapState + 1) % 3; // off, small, big
         MiniMap::bigMiniMap = S_MiniMapState == 2;
     }

@@ -6,7 +6,6 @@ vec3[]@ GetCheckpointPositions() {
     }
     MwFastBuffer<CGameScriptMapLandmark@> landmarks = cp.Arena.MapLandmarks;
     auto positions = array<vec3>();
-    auto lcps = dictionary();
     for (uint i = 0; i < landmarks.Length; i++) {
         auto landmark = cast<CSmScriptMapLandmark>(landmarks[i]);
         if (landmark is null) continue;

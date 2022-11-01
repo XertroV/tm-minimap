@@ -71,3 +71,8 @@ MiniMapShapes S_Player_Shape = MiniMapShapes::Circle;
 
 [Setting category="Appearance" name="Camera Shape"]
 MiniMapShapes S_Camera_Shape = MiniMapShapes::Circle;
+
+/* advanced */
+
+[Setting category="Advanced" name="Allow Minimap in Editor?" description="The minimap will be disabled in the editor unless this is checked."]
+bool S_AllowInEditor = false;
