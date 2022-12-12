@@ -185,7 +185,7 @@ namespace MiniMap {
         auto y = int(p.y);
         int _max = int(S_MiniMapGridParts);
         if (x < 0 || x > _max || y < 0 || y > _max) return;
-        if (minimapPlayerObservations.Length != _max || minimapPlayerObservations[0].Length != _max) return;
+        if (minimapPlayerObservations.Length != _max || minimapPlayerObservations[y].Length != _max) return;
         // sometimes an index OOB exception happens below, so exit if lengths don't seem right
         minimapPlayerObservations[y][x] += uint(lt * onPlayerTick);
         if (x+1 < _max) minimapPlayerObservations[y][x+1] += uint(rt * onPlayerTick);
