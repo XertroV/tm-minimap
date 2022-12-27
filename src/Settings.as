@@ -60,17 +60,20 @@ float S_Camera_Size = 10.0;
 
 enum MiniMapShapes {
     Circle,
-    Square
+    Square,
+    Arrow,
+    TriArrow,
+    QuadArrow
 }
 
 [Setting category="Appearance" name="CP Shape"]
 MiniMapShapes S_CP_Shape = MiniMapShapes::Circle;
 
 [Setting category="Appearance" name="Player Shape"]
-MiniMapShapes S_Player_Shape = MiniMapShapes::Circle;
+MiniMapShapes S_Player_Shape = MiniMapShapes::Arrow;
 
 [Setting category="Appearance" name="Camera Shape"]
-MiniMapShapes S_Camera_Shape = MiniMapShapes::Circle;
+MiniMapShapes S_Camera_Shape = MiniMapShapes::Arrow;
 
 /* advanced */
 

@@ -57,11 +57,11 @@ void OnSettingsChanged() {
 void UpdateDefaultSettings() {
     if (S_MiniMapSize == 0)
         S_MiniMapSize = InitMiniMapSize();
-    if (S_MiniMapPosition.LengthSquared() == 0) {
+    if (S_MiniMapPosition.LengthSquared() == 0.) {
         Recalc_S_MiniMapPosition();
     }
     if (S_BigMiniMapSize == 0) {
-        S_BigMiniMapSize = Math::Min(Draw::GetHeight(), Draw::GetWidth()) / 1.5;
+        S_BigMiniMapSize = uint(Math::Min(Draw::GetHeight(), Draw::GetWidth()) / 1.5);
     }
 }
 

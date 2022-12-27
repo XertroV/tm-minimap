@@ -74,7 +74,7 @@ namespace MiniMap {
 
         // add a small amount of padding (sometimes the map route goes outside the cp bounding box)
         vec3 mapSize = max - min;
-        float padding = 0.05;
+        float padding = 0.1;
         min -= mapSize * padding;
         max += mapSize * padding;
 
@@ -130,6 +130,21 @@ namespace MiniMap {
         }
     }
 
+#if DEV
+    void TryGettingGhostPositions() {
+        auto ripGhost = GetPathForRootMapFromGhost();
+        trace("Found " + ripGhost.Length + " ripGhost positions to draw.");
+        for (uint i = 0; i < ripGhost.Length; i += 20) {
+            auto item = ripGhost[i];
+            trace("ix:" + i + " -- " + item.ToString());
+        }
+        yield();
+        for (uint i = 0; i < ripGhost.Length; i++) {
+            ObservePlayerInWorld(ripGhost[i], 10000);
+        }
+    }
+#endif
+
     vec2 tl;
     vec2 wh;
     float sideLen;
@@ -167,13 +182,13 @@ namespace MiniMap {
         return vec2(gridPos.x, gridPos.z); // +- 0.5?
     }
 
-    void ObservePlayerInWorld(vec3 pos) {
+    void ObservePlayerInWorld(vec3 pos, float weight = 1.0) {
         auto gridPos = WorldToGridPosF(pos);
         if (gridPos.x < 0 || gridPos.x > float(S_MiniMapGridParts)) return;
         if (gridPos.y < 0 || gridPos.y > float(S_MiniMapGridParts)) return;
-        NotePlayerAt(gridPos);
+        NotePlayerAt(gridPos, weight);
     }
-    void NotePlayerAt(vec2 p) {
+    void NotePlayerAt(vec2 p, float weight = 1.0) {
         // we overlap 4 coords
         auto xr = p.x % 1;
         auto yb = p.y % 1;
@@ -191,7 +206,7 @@ namespace MiniMap {
         if (x+1 < _max) minimapPlayerObservations[y][x+1] += uint(rt * onPlayerTick);
         if (y+1 < _max) minimapPlayerObservations[y+1][x] += uint(lb * onPlayerTick);
         if (x+1 < _max && y+1 < _max)
-            minimapPlayerObservations[y+1][x+1] += uint(rb * onPlayerTick);
+            minimapPlayerObservations[y+1][x+1] += uint(rb * onPlayerTick * weight);
     }
 
     /* main drawing logic */
@@ -237,7 +252,7 @@ namespace MiniMap {
 
     void DrawMiniMapCheckpoints() {
         for (uint i = 0; i < cpPositions.Length; i++) {
-            DrawMarkerAt(WorldToGridPosF(cpPositions[i]), S_CP_Color, S_CP_Shape, S_CP_Size);
+            DrawMarkerAt(WorldToGridPosF(cpPositions[i]), vec3(0, 1, 0), S_CP_Color, S_CP_Shape, S_CP_Size);
         }
     }
 
@@ -269,12 +284,16 @@ namespace MiniMap {
         if (GetApp().GameScene is null) return;
         auto viss = VehicleState::GetAllVis(GetApp().GameScene);
         for (uint i = 0; i < viss.Length; i++) {
-            DrawMarkerAt(WorldToGridPosF(viss[i].AsyncState.Position), S_Player_Color, S_Player_Shape, S_Player_Size);
+            DrawMarkerAt(WorldToGridPosF(viss[i].AsyncState.Position), viss[i].AsyncState.Dir, S_Player_Color, S_Player_Shape, S_Player_Size);
         }
     }
 
     void DrawMiniMapCamera() {
-        DrawMarkerAt(WorldToGridPosF(Camera::GetCurrentPosition()), S_Camera_Color, S_Camera_Shape, S_Camera_Size);
+        auto cam = Camera::GetCurrent();
+        if (cam is null) return;
+        auto nextLoc = cam.NextLocation;
+        vec3 dir = vec3(nextLoc.xz, nextLoc.yz, nextLoc.zz);
+        DrawMarkerAt(WorldToGridPosF(Camera::GetCurrentPosition()), dir, S_Camera_Color, S_Camera_Shape, S_Camera_Size);
     }
 
     /* drawing helpers */
@@ -291,7 +310,7 @@ namespace MiniMap {
 
     vec4 GridSqColor(uint count) {
         if (count == 0 || avgObvsPerSquare < 0.0001) return vec4();
-        auto ret = F4Vec(Math::Min(1.0, float(count) / avgObvsPerSquare));
+        auto ret = F4Vec(Math::Min(1.0, float(count) * S_MiniMapGridParts / 10000));
         return ret;
     }
 
@@ -321,25 +340,113 @@ namespace MiniMap {
         return vec4(xy.x, xy.y, _wh.x, _wh.y);
     }
 
-    void DrawMarkerAt(vec2 pos, vec4 col, MiniMapShapes shape, float size) {
+    void nvgIndicatorStrokeFill(vec4 col) {
+        nvg::FillColor(col);
+        nvg::Fill();
+        nvg::StrokeWidth(.4);
+        nvg::StrokeColor(col);
+        nvg::Stroke();
+    }
+
+    void DrawMarkerAt(vec2 pos, vec3 dir, vec4 col, MiniMapShapes shape, float size) {
+        // if there is no xz component to the direction vector, make the shape a circle.
+        if (dir.x == dir.z && dir.z == 0) {
+            shape = MiniMapShapes::Circle;
+        }
         size = size * ScaleFactor;
         vec4 rect = GetMMPosRect(pos + F2Vec(.5));
+        nvg::Reset();
         nvg::BeginPath();
         switch (shape) {
             case MiniMapShapes::Circle:
                 nvg::Circle(rect.xyz.xy, size / 2);
+            break;
+            case MiniMapShapes::Arrow:
+                nvgArrow(rect.xyz.xy, size, vec2(dir.x, dir.z), col);
+            break;
+            case MiniMapShapes::TriArrow:
+                nvgTriArrow(rect.xyz.xy, size, vec2(dir.x, dir.z), col);
+            break;
+            case MiniMapShapes::QuadArrow:
+                nvgQuadArrow(rect.xyz.xy, size, vec2(dir.x, dir.z), col);
             break;
             case MiniMapShapes::Square:
             default:
                 nvg::Rect(rect.x, rect.y, size, size);
             break;
         }
-        nvg::FillColor(col);
-        nvg::Fill();
+        nvgIndicatorStrokeFill(col);
         nvg::ClosePath();
     }
 
     float get_ScaleFactor() {
         return Draw::GetHeight() / 1080.0 * (bigMiniMap ? float(S_BigMiniMapSize) / float(S_MiniMapSize) : 1.0);
+    }
+
+    float TAU = 6.28318530717958647692;
+    mat3 rotateLeft90 = mat3::Rotate(TAU / 4.);
+    mat3 rotate180 = mat3::Rotate(TAU / 2.);
+    mat3 rotateRight90 = mat3::Rotate(- TAU / 4.);
+
+
+    /**
+     * something like this:
+     *      /\
+     *     /  \
+     *    / /\ \
+     *    V    V
+     */
+    void nvgArrow(vec2 pos, float size, vec2 &in dir, vec4 col) {
+        auto dirNormd = dir.Normalized();
+        // shift pos back a bit to center the arrow better
+        // pos -= dirNormd * .25;
+        auto dirLeft = (rotateLeft90 * dirNormd).xy;
+        auto tip = pos + dirNormd * size;
+        auto bl = pos + (dirLeft - dirNormd) * size / 1.7;
+        auto br = pos - (dirLeft + dirNormd) * size / 1.7;
+
+        nvg::MoveTo(tip);
+        nvg::LineTo(br);
+        nvg::LineTo(pos);
+        nvg::LineTo(tip);
+        nvgIndicatorStrokeFill(col);
+        nvg::ClosePath();
+        nvg::BeginPath();
+        nvg::MoveTo(tip);
+        nvg::LineTo(pos);
+        nvg::LineTo(bl);
+        nvg::LineTo(tip);
+    }
+
+    void nvgQuadArrow(vec2 pos, float size, vec2 &in dir, vec4 col) {
+        auto dirNormd = dir.Normalized();
+        // shift pos back a bit to center the arrow better
+        // pos -= dirNormd * .25;
+        auto dirLeft = (rotateLeft90 * dirNormd).xy;
+        auto tip = pos + dirNormd * size;
+        auto tail = pos - (dirNormd * size / 2);
+        auto bl = pos + (dirLeft) * size / 2.;
+        auto br = pos - (dirLeft) * size / 2.;
+
+        nvg::MoveTo(tip);
+        nvg::LineTo(bl);
+        nvg::LineTo(tail);
+        nvg::LineTo(br);
+        nvg::LineTo(tip);
+    }
+
+    void nvgTriArrow(vec2 pos, float size, vec2 &in dir, vec4 col) {
+        auto dirNormd = dir.Normalized();
+        // shift pos back a bit to center the arrow better
+        // pos -= dirNormd * .25;
+        auto dirLeft = (rotateLeft90 * dirNormd).xy;
+        auto tip = pos + dirNormd * size;
+        auto bl = pos + (dirLeft - dirNormd) * size / 1.7;
+        auto br = pos - (dirLeft + dirNormd) * size / 1.7;
+        // simple triangle
+        nvg::MoveTo(tip);
+        nvg::LineTo(br);
+        nvg::LineTo(bl);
+        nvg::LineTo(tip);
     }
 }
