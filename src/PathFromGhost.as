@@ -1,3 +1,4 @@
+#if DEV
 uint RunCount = 0;
 
 array<vec3> GetPathForRootMapFromGhost() {
@@ -110,24 +111,6 @@ vec3[] RipGhost(CGameGhostScript@ ghost) {
 }
 
 
-// auto x = CGameDisplaySettingsWrapper::EDisplayMode::Windowed;
-// auto x2 = CGameDisplaySettingsWrapper::EConsoleResolution::Quality;
-// auto y = CGameDisplaySettingsWrapper::ETripleBuffer::Off;
-// auto y2 = CGameDisplaySettingsWrapper::EPreset::VeryFast;
-// auto y3 = CSystemConfigDisplay::ETripleBuffer::_TripleBuffering_Off;
-// auto y4 = SPlugGraphVar::EType::Float2;
-// auto y5 = CGameCtnMediaBlockEntity_SuperSKeyVal::EForceLight::Off;
-// auto y5 = NSysCfgVision_SCptInGame_Local::EHmsLightMapQuality::VFast;
-// auto y5 = NSysCfgVision_SCptInGame_Global::EHmsLightMapQuality::VFast;
-// auto y5 = CHmsLightMapCache::EHmsLightMapQuality::VFast;
-// auto x = CGamePlaygroundUIConfig::EUISound::Default;
-// auto x = UI::StyleVar::Alpha;
-// auto x = CGameScriptDebugger::EVisibility::EditorAndLogs;
-// auto x = CGamePlaygroundUIConfig::EVisibility::None;
-
-
-
-
 class NadeoApi {
     string liveSvcUrl;
 
@@ -170,3 +153,4 @@ Json::Value FetchLiveEndpoint(const string &in route) {
     while(!req.Finished()) { yield(); }
     return Json::Parse(req.String());
 }
+#endif
