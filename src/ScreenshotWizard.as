@@ -27,6 +27,12 @@ namespace ScreenShot {
         }
     }
 
+    string DestMapInfoJsonFilePath {
+        get {
+            return IO::FromStorageFolder("bgs/" + mapUid + ".json");
+        }
+    }
+
     enum WizStage {
         Uninitialized,
         // instruction: open map in map editor
@@ -69,6 +75,17 @@ namespace ScreenShot {
 
     void Main() {
         startnew(AutoUpdateCameraLoop);
+        startnew(ExitIfEditorGone);
+    }
+
+    void ExitIfEditorGone() {
+        while (true) {
+            yield();
+            if (currStage <= WizStage::Start) continue;
+            if (GetApp().Editor is null) {
+                currStage = WizStage::Uninitialized;
+            }
+        }
     }
 
     uint lastAutoUpdateCam = 0;
@@ -80,11 +97,11 @@ namespace ScreenShot {
             if (currStage != WizStage::InMediaTracker) continue;
             if (!m_autoUpdateCamera) continue;
             if (cast<CGameEditorMediaTracker>(GetApp().Editor) is null) continue;
-            if (lastAutoUpdateCam + 200 > Time::Now) continue;
+            if (lastAutoUpdateCam + 250 > Time::Now) continue;
             if (!requestAutoUpdate) continue;
             lastAutoUpdateCam = Time::Now;
             requestAutoUpdate = false;
-            print("Auto updating.");
+            // print("Auto updating.");
             try {
                 OnClickAutopopulateCamera();
             } catch {
@@ -95,9 +112,11 @@ namespace ScreenShot {
 
     mat4 rotation, perspective, translation, projection;
     [Setting hidden]
-    float CameraHeight = 10000.;
+    float CameraHeight = 30000.;
     [Setting hidden]
     vec2 m_padding = vec2(5, 5);
+    [Setting hidden]
+    vec2 m_offset = vec2(0, 0);
 
     float AspectRatio {
         get {
@@ -107,11 +126,11 @@ namespace ScreenShot {
     }
 
     void UpdateMatricies() {
-        auto custRotation = mat4::Rotate(Math::ToRad(m_Rotation), vec3(0, 1, 0));
+        auto custRotation = mat4::Rotate(Math::ToRad(m_Rotation), vec3(0, -1, 0));
         // rotate around z axis to point down, then apply custom rotation
         rotation = custRotation * mat4::Rotate(Math::ToRad(-90), vec3(1, 0, 0));
         vec3 minimapMidPoint = (mapMax + mapMin) / 2.;
-        cameraPos = vec3(minimapMidPoint.x, CameraHeight, minimapMidPoint.z);
+        cameraPos = vec3(minimapMidPoint.x - m_offset.x, CameraHeight, minimapMidPoint.z - m_offset.y);
         translation = mat4::Translate(cameraPos);
         UpdateShotResY();
         cameraPitchYawRoll = vec3(90, 0, m_Rotation);
@@ -139,12 +158,12 @@ namespace ScreenShot {
     void SearchForFoVAndSetProjection() {
         auto mapSize = mapMax - mapMin;
         vec3 pad = vec3(mapSize.x * m_padding.x, 0, mapSize.z * m_padding.y) / 100.;
-        auto minTest = mapMin - pad;
-        auto maxTest = mapMax + pad;
+        auto minTest = mapMin - pad - vec3(m_offset.x, 0, m_offset.y);
+        auto maxTest = mapMax + pad - vec3(m_offset.x, 0, m_offset.y);
         maxTest.y = minTest.y;
         float fovUpper = 90.;
         float fovLower = 0.1;
-        cameraFov = 20.;
+        cameraFov = Math::Clamp(cameraFov, 1., 90.);
         CalcProjectionMatricies(cameraFov);
         uint count = 0;
         while (FovError(minTest, maxTest) > 0.001) {
@@ -155,10 +174,10 @@ namespace ScreenShot {
                 fovLower = cameraFov;
             }
             cameraFov = (fovUpper + fovLower) / 2.;
-            print("new fov: " + cameraFov);
+            // print("new fov: " + cameraFov);
             CalcProjectionMatricies(cameraFov);
-            if (count > 100) {
-                print("looped too much; breaking");
+            if (count > 40) {
+                warn("SearchForFoVAndSetProjection looped too much; breaking");
                 break;
             }
         }
@@ -180,6 +199,17 @@ namespace ScreenShot {
             Math::Max(Math::Abs(fovMinTestRes.x), Math::Abs(fovMinTestRes.y)),
             Math::Max(Math::Abs(fovMaxTestRes.x), Math::Abs(fovMaxTestRes.y))
         );
+        // also check the alternate extreme corners
+        auto tmp = minTest.x;
+        minTest.x = maxTest.x;
+        maxTest.x = tmp;
+        fovMinTestRes = ProjectPoint(minTest);
+        fovMaxTestRes = ProjectPoint(maxTest);
+        // take max of new and old results
+        fovMaxUV = Math::Max(fovMaxUV, Math::Max(
+            Math::Max(Math::Abs(fovMinTestRes.x), Math::Abs(fovMinTestRes.y)),
+            Math::Max(Math::Abs(fovMaxTestRes.x), Math::Abs(fovMaxTestRes.y))
+        ));
         return Math::Abs(fovMaxUV - 1.);
     }
 
@@ -247,8 +277,9 @@ namespace ScreenShot {
         auto editor = cast<CGameCtnEditorFree>(GetApp().Editor);
         if (editor is null) {
             UI::Text("Open a map in the editor.");
+            UI::Dummy(vec2(0, UI::GetTextLineHeightWithSpacing() * 3.));
         } else {
-            RenderCurrMapDetails();
+            RenderCurrMapDetails(true);
         }
         UI::Separator();
         UI::BeginDisabled(GetApp().RootMap is null || editor is null);
@@ -264,7 +295,8 @@ namespace ScreenShot {
         UI::Text("I need to get the coordinates for all of the CPs.");
         UI::TextWrapped("I'm going to automate going into validation mode and will get the CP data, when you're ready.");
         // UI::TextWrapped("\\$<\\$fd1Note: If there is a mediatracker intro, I'm unable to automatically skip it. Please skip it for me.\\$>");
-        if (UI::Button("I'm Ready##get-cps")) {
+        UI::Dummy(vec2(0, UI::GetTextLineHeightWithSpacing() * 2.5));
+        if (UI::Button("I'm Ready, Automate Away.##get-cps")) {
             startnew(OnBeginValidationAuto);
         }
     }
@@ -281,7 +313,7 @@ namespace ScreenShot {
         UI::TextWrapped("\\$fd1" + Icons::ExclamationCircle + "  You might need to clear away some scenery to make sure the camera can see the map from above. Now is the time to do that. (You can come back later, though).");
         UI::Separator();
         UI::TextWrapped("Click next when you're ready to set up the camera. (You can come back later without losing settings.)");
-        if (UI::Button("To MediaTracker")) {
+        if (UI::Button("Take Me To MediaTracker")) {
             startnew(OnClickEnterMediaTracker);
         }
     }
@@ -300,11 +332,17 @@ namespace ScreenShot {
         // not wrapped to set min effective width
         UI::Text("Okay, now we need to set up the camera and stuff like the fog, color fx, etc.");
         UI::TextWrapped("Hopefully, you removed any scenary above the track earlier (otherwise, go do this now).");
-        UI::TextWrapped("Next, we need to set up a \\$<\\$1efcustom camera\\$> track that will be the basis for our screenshot.");
+        UI::Text("Next, we need to set up a \\$<\\$1efcustom camera\\$> track that will be the basis for our screenshot.");
         UI::TextWrapped("\\$fd1" + Icons::ExclamationCircle + "\\$z  You may want to remove all existing media tracks at this time.");
         UI::TextWrapped("After the camera is set up, it's up to you to set things like the fog, colors fx / grading, etc to make the map look the way that you want.");
-        UI::TextWrapped("\\$26f" + Icons::InfoCircle +  "\\$z  Suggestion: in fog set all settings to 0 or the minimum to disable the default fog and clouds.");
-        UI::TextWrapped("\\$fd1" + Icons::ExclamationCircle + "\\$z  Please create a custom camera called 'Custom camera' with the Target and Anchor set to 'None'. After that, set your parameters and use the autopopulate button.");
+        UI::TextWrapped("\\$69f" + Icons::InfoCircle +  "\\$z  Suggestion: in fog set all settings to 0 or the minimum to disable the default fog and clouds.");
+        UI::TextWrapped("\\$fd1" + Icons::ExclamationCircle + "\\$z  You *need* a custom camera exactly called 'Custom camera' with the Target and Anchor set to 'None'. After that, set your parameters and use the autopopulate button.");
+        UI::TextWrapped("\\$fd1" + Icons::ExclamationCircle + "\\$z  Always use keyframes at 00:00.000 -- the start of the timeline.");
+        UI::Separator();
+        if (UI::Button("Automatically set up")) {
+            startnew(OnClickAutomaticTrackSetup);
+        }
+        UI::Text("\\$69f" + Icons::InfoCircle +  "\\$z  Note: you might want to play with (or remove) the color FX track.");
         UI::Separator();
         UI::AlignTextToFramePadding();
         UI::TextWrapped("Screenshot Parameters:");
@@ -312,24 +350,27 @@ namespace ScreenShot {
         DrawCameraFovChooser();
         UI::Separator();
         UI::AlignTextToFramePadding();
-        UI::TextWrapped("Camera Details:");
-        UI::TextWrapped("Track Type: Custom Camera");
-        UI::TextWrapped("Target: None");
-        UI::TextWrapped("Anchor: None");
-        UI::TextWrapped("Interpolation: None");
-        UI::TextWrapped("Position: " + cameraPos.ToString());
-        UI::TextWrapped("Rotation: " + cameraPitchYawRoll.ToString());
-        UI::TextWrapped("Field of view: " + cameraFov);
-        UI::TextWrapped("Near clip plane: 0.05");
+        if (UI::CollapsingHeader("Camera Details")) {
+            UI::TextWrapped("Track Type: Custom Camera");
+            UI::TextWrapped("Target: None");
+            UI::TextWrapped("Anchor: None");
+            UI::TextWrapped("Interpolation: None");
+            UI::TextWrapped("Position: " + cameraPos.ToString());
+            UI::TextWrapped("Rotation: " + cameraPitchYawRoll.ToString());
+            UI::TextWrapped("Field of view: " + cameraFov);
+            UI::TextWrapped("Near clip plane: 0.05");
+            UI::Separator();
+            DrawMapBounds();
+            UI::Text("Debug TL: " + ProjectPoint(mapMin).ToString());
+            UI::Text("Debug BR: " + ProjectPoint(mapMaxGround).ToString());
+            UI::Text("Debug SS Res: " + shotRes.ToString());
+        }
+        UI::Separator();
         if (UI::Button("Auto-populate custom camera track values")) {
             startnew(OnClickAutopopulateCamera);
         }
+        UI::SameLine();
         m_autoUpdateCamera = UI::Checkbox("Auto-update?", m_autoUpdateCamera);
-        UI::Separator();
-        DrawMapBounds();
-        UI::Text("Debug TL: " + ProjectPoint(mapMin).ToString());
-        UI::Text("Debug BR: " + ProjectPoint(mapMaxGround).ToString());
-        UI::Text("Debug SS Res: " + shotRes.ToString());
         UI::Separator();
         UI::Text("When you're done, we'll take the screen shot.");
         if (UI::Button("I'm done, ready to take the shot!")) {
@@ -349,7 +390,7 @@ namespace ScreenShot {
         UI::TextWrapped("Select 'High' quality options, and enter:");
         UI::Text("Width: " + shotRes.x);
         UI::Text("Height: " + shotRes.y);
-        UI::Text("Format: Webp");
+        UI::Text("Format: JPG");
 
         UI::Separator();
         if (UI::Button("Go Back, take another")) {
@@ -364,6 +405,8 @@ namespace ScreenShot {
     void RenderTakingScreenShot() {
         UI::TextWrapped("You should now see the screenshot (after rendering). Press a key to save or ESC to go back.");
         UI::Separator();
+        UI::TextWrapped("\\$fd1" + Icons::ExclamationCircle + "\\$z  You *must* take or cancel the screenshot before pressing one of these buttons! (Undefined behavior otherwise.)");
+        UI::Separator();
         if (UI::Button("No good, need another one (Back)")) {
             AdvanceStep(-2);
         }
@@ -377,7 +420,16 @@ namespace ScreenShot {
     void RenderScreenShotPrompt() {}
 
     void RenderConfirmScreenShot() {
-
+        UI::Text("You like?");
+        if (UI::Button("No (Back)")) OnDontLikeScreenshot();
+        UI::SameLine();
+        if (UI::Button("Yes (Save)")) OnLikeScreenshot();
+        UI::Separator();
+        if (screenshotImage is null) {
+            UI::Text("Loading image...");
+        } else {
+            UI::Image(screenshotImage, vec2(shotRes.x, shotRes.y) / float(shotRes.y) * (Draw::GetHeight() / 2.));
+        }
     }
 
     void RenderComplete() {
@@ -390,7 +442,7 @@ namespace ScreenShot {
 
 
 
-    void RenderCurrMapDetails() {
+    void RenderCurrMapDetails(bool addPadding = false) {
         auto map = GetApp().RootMap;
         if (map is null) {
             UI::Text("No map loaded.");
@@ -428,18 +480,39 @@ namespace ScreenShot {
         auto origHR = shotRes.x;
         auto origRot = m_Rotation;
         auto origAspect = S_Wiz_Aspect;
+        auto origOffset = m_offset;
+
         if (shotRes.x == 0) {
             shotRes.x = Draw::GetWidth();
         }
-        shotRes.x = UI::SliderInt("Horiz. Pixles", shotRes.x, 1280, 5000);
+        shotRes.x = UI::SliderInt("Horiz. Pixles", shotRes.x, 1280, 8192);
+        UI::SameLine(); if (UI::Button("1920")) shotRes.x = 1920;
+        UI::SameLine(); if (UI::Button("2560")) shotRes.x = 2560;
+        UI::SameLine(); if (UI::Button("3440")) shotRes.x = 3440;
+        UI::SameLine(); if (UI::Button("3840")) shotRes.x = 3840;
+        UI::SameLine(); if (UI::Button("5120")) shotRes.x = 5120;
+        UI::SameLine(); if (UI::Button("7680")) shotRes.x = 7680;
+
         if (UI::BeginCombo("Aspect", tostring(S_Wiz_Aspect))) {
-            // todo
-            // ! todo
+            for (int i = 0; i < int(Aspect::Last); i++) {
+                auto a = Aspect(i);
+                if (UI::Selectable(tostring(a), S_Wiz_Aspect == a)) {
+                    S_Wiz_Aspect = a;
+                }
+            }
             UI::EndCombo();
         }
-        m_Rotation = UI::InputFloat("Rotation (degrees)", m_Rotation);
-        m_Rotation = Math::Clamp(m_Rotation, -180, 540);
-        if (origHR != shotRes.x || m_Rotation != origRot || origAspect != S_Wiz_Aspect) {
+
+        auto mapMaxDims = Math::Max(mapMax.x - mapMin.x, mapMax.z - mapMin.x) * 1.1;
+        m_offset = UI::SliderFloat2("Offset (x,y)", m_offset, -mapMaxDims, mapMaxDims, "%.0f");
+        UI::SameLine();
+        if (UI::Button(Icons::Refresh + "##reset-offset")) m_offset = vec2(0, 0);
+
+        m_Rotation = UI::InputFloat("Rotation (degrees)", m_Rotation, 0.5);
+        m_Rotation = Math::Clamp(m_Rotation, -180., 540.);
+        UI::SameLine(); if (UI::Button(Icons::Refresh + "##reset-rotation")) m_Rotation = 0.;
+
+        if (origHR != shotRes.x || m_Rotation != origRot || origAspect != S_Wiz_Aspect || !Vec2Eq(origOffset, m_offset)) {
             UpdateMatricies();
             requestAutoUpdate = m_autoUpdateCamera;
         }
@@ -458,9 +531,14 @@ namespace ScreenShot {
         auto origCH = CameraHeight;
         auto origPadding = m_padding;
         auto origFov = cameraFov;
+        // the default zclip distance is 50000; though it can be changed (camera property from memory).
+        // set max to 50k tho to be safe
         CameraHeight = UI::SliderFloat("Cam Height", CameraHeight, 1000., 50000., "%.0f");
-        m_padding = UI::InputFloat2("Edge Padding (x,y %)", m_padding);
-        cameraFov = Math::Clamp(UI::InputFloat("Cam FoV", cameraFov, 0.1), 0.1, 90.);
+        m_padding = UI::SliderFloat2("Edge Padding (x,y %)", m_padding, -50., 100., "%.1f");
+        UI::SameLine();
+        if (UI::Button(Icons::Refresh + "##reset-padding")) m_padding = vec2(5, 5);
+
+        // cameraFov = Math::Clamp(UI::InputFloat("Cam FoV", cameraFov, 0.1), 0.1, 90.);
         if (origCH != CameraHeight || !Vec2Eq(m_padding, origPadding) || cameraFov != origFov) {
             UpdateMatricies();
             requestAutoUpdate = m_autoUpdateCamera;
@@ -556,7 +634,83 @@ namespace ScreenShot {
         }
     }
 
+    void OnClickAutomaticTrackSetup() {
+        // todo!
+        auto editor = cast<CGameEditorMediaTracker>(GetApp().Editor);
+        if (editor is null) return;
+        auto api = cast<CGameEditorMediaTrackerPluginAPI>(editor.PluginAPI);
+        api.RemoveAllTracks();
+        yield();
+        api.CreateTrack(CGameEditorMediaTrackerPluginAPI::EMediaTrackerBlockType::CameraCustom);
+        yield();
+        api.CreateTrack(CGameEditorMediaTrackerPluginAPI::EMediaTrackerBlockType::Fog);
+        yield();
+        AutoSetUpFog(1, editor);
+        yield();
+        api.CreateTrack(CGameEditorMediaTrackerPluginAPI::EMediaTrackerBlockType::FxColors);
+        yield();
+        AutoSetUpFxColors(2, editor);
+        yield();
+        UpdateMatricies();
+        OnClickAutopopulateCamera();
+    }
 
+    void AutoSetUpFxColors(uint trackIx, CGameEditorMediaTracker@ editor) {
+        auto api = cast<CGameEditorMediaTrackerPluginAPI>(editor.PluginAPI);
+        api.SelectItem(trackIx, 0, 0);
+        yield();
+        // 0, 4, 0, 2
+        /**
+         * 0, 0, 0: global intensity; CControlSlider; .Nod :: CGameManialinkSlider; .Value to alter
+         * 1, ...: edit far
+         * 2, 0, 0 near dist (CControlEntry)
+         * 3, 0, 0 near hue (CControlSlider)
+         * 4, ...: near saturation label
+         * 5, 0, 0/1 near sat fields :: CControlSlider/CControlEntry
+         * 6, ...: near brightness
+         * 7, 0, 0/1 near brightness fields :: CControlSlider/CControlEntry
+         * 8, ...: near contrast
+         * 9, 0, 0/1 near contrast fields :: CControlSlider/CControlEntry
+         * 10, 0, 0 near inverse (CControlSlider)
+         * 11, 12, 13: as above, but red, g, b
+         */
+        auto globalIntensity = GetOverlayElementAtPath(14, {0, 4, 0, 2, 0, 0, 0});
+        auto nearSat = GetOverlayElementAtPath(14, {0, 4, 0, 2, 5, 0, 1});
+        auto nearBright = GetOverlayElementAtPath(14, {0, 4, 0, 2, 7, 0, 1});
+        // auto nearContrast = GetOverlayElementAtPath(14, {0, 4, 0, 2, 9, 0, 1});
+        SetControlEntryValue(nearSat, "0.09");
+        SetControlEntryValue(nearBright, "0.02");
+        cast<CGameManialinkSlider>(globalIntensity.Nod).Value = 1.0;
+        yield();
+    }
+
+    void AutoSetUpFog(uint trackIx, CGameEditorMediaTracker@ editor) {
+        auto api = cast<CGameEditorMediaTrackerPluginAPI>(editor.PluginAPI);
+        api.SelectItem(trackIx, 0, 0);
+        yield();
+        // 0, 4, 0, 2
+        /**
+         * 0, 0, 0: Distance; control entry
+         * 1, 0, 0: fog intensity, slider
+         * 2, 0, 0: sky intensity, slider
+         * 3: color label, 4: color picker
+         * 5 through 12: nothing / empty
+         * 13, 0, 0: cloud opacity, slider
+         * 14, 0, 0: cloud speed, entry
+         */
+        auto fog = GetOverlayElementAtPath(14, {0, 4, 0, 2, 1, 0, 0});
+        auto sky = GetOverlayElementAtPath(14, {0, 4, 0, 2, 2, 0, 0});
+        auto cloudO = GetOverlayElementAtPath(14, {0, 4, 0, 2, 13, 0, 0});
+        // we don't really need to set this, but we do want to trigger a UI update when we change the sliders and `ControlEntry`s have a hack thing that triggers a ui update.
+        auto cloudSpeed = GetOverlayElementAtPath(14, {0, 4, 0, 2, 14, 0, 0});
+
+        cast<CGameManialinkSlider>(fog.Nod).Value = 0.;
+        cast<CGameManialinkSlider>(sky.Nod).Value = 0.;
+        cast<CGameManialinkSlider>(cloudO.Nod).Value = 0.;
+        yield();
+        SetControlEntryValue(cloudSpeed, "0.1");
+        yield();
+    }
 
     void OnClickAutopopulateCamera() {
         auto mtEdior = cast<CGameEditorMediaTracker>(GetApp().Editor);
@@ -568,6 +722,7 @@ namespace ScreenShot {
         // check we're focused on the custom camera
         string ccLabel = "Custom camera";
         auto api = cast<CGameEditorMediaTrackerPluginAPI>(mtEdior.PluginAPI);
+        api.SetTimer("0");
         if (api.Clip.Tracks.Length > 0 && api.EditMode != CGameEditorMediaTrackerPluginAPI::EMediaTrackerBlockType::CameraCustom) {
             CGameCtnMediaTrack@ track;
             for (uint i = 0; i < api.Clip.Tracks.Length; i++) {
@@ -651,8 +806,8 @@ namespace ScreenShot {
         // yield();
     }
 
-    uint extEnum = 0;
-    string extName = ".webp";
+    uint extEnum = 2;
+    string extName = ".jpg";
 
     void OnClickStartScreenshot() {
         auto app = GetApp();
@@ -670,7 +825,7 @@ namespace ScreenShot {
         shootParams.Height = shotRes.y;
         shootParams.ShootName = mapUid;
         // 0: webp, 2: jpg
-        shootParams.ExtScreen = 0;
+        shootParams.ExtScreen = extEnum;
         if (IO::FileExists(CurrScreenShotFilePath)) {
             IO::Delete(CurrScreenShotFilePath);
         }
@@ -683,6 +838,9 @@ namespace ScreenShot {
         AdvanceStep();
         startnew(RefreshMapsWithScreenshots);
         // @screenshotImage = UI::LoadTexture(CurrScreenShotFilePath);
+        if (!IO::FileExists(CurrScreenShotFilePath)) {
+            throw("Screenshot does not exist: " + CurrScreenShotFilePath);
+        }
         IO::File imageFile(CurrScreenShotFilePath, IO::FileMode::Read);
         auto imageBuf = imageFile.Read(imageFile.Size());
         imageFile.Close();
@@ -696,6 +854,29 @@ namespace ScreenShot {
     void OnDontLikeScreenshot() {
         AdvanceStep(-1);
         @screenshotImage = null;
+    }
+
+    void OnLikeScreenshot() {
+        SaveMapJsonData();
+        AdvanceStep();
+    }
+
+    void SaveMapJsonData() {
+        auto j = Json::Object();
+        j['version'] = 1;
+        j['name'] = mapName;
+        j['uid'] = mapUid;
+        j['aspect'] = int(S_Wiz_Aspect);
+        j['rotation'] = m_Rotation;
+        j['padding.x'] = m_padding.x;
+        j['padding.y'] = m_padding.y;
+        j['offset.x'] = m_offset.x;
+        j['offset.y'] = m_offset.y;
+        j['min.x'] = mapMin.x;
+        j['min.y'] = mapMin.y;
+        j['max.x'] = mapMax.x;
+        j['max.y'] = mapMax.y;
+        Json::ToFile(DestMapInfoJsonFilePath, j);
     }
 }
 
