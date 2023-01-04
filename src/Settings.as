@@ -79,3 +79,31 @@ MiniMapShapes S_Camera_Shape = MiniMapShapes::Arrow;
 
 [Setting category="Advanced" name="Allow Minimap in Editor?" description="The minimap will be disabled in the editor unless this is checked."]
 bool S_AllowInEditor = false;
+
+[SettingsTab name="Background Images" icon="PictureO"]
+void Render_S_BackgroundImages() {
+    if (!Permissions::OpenAdvancedMapEditor()) {
+        UI::Text("Sorry, this feature is only available with club access.");
+        return;
+    }
+    UI::AlignTextToFramePadding();
+    UI::TextWrapped("Use the wizard to take new screenshots:");
+    UI::BeginDisabled(ScreenShot::currStage != ScreenShot::WizStage::Uninitialized);
+    if (UI::Button("Start Wizard")) {
+        ScreenShot::InitWizard();
+    }
+    UI::EndDisabled();
+    UI::Separator();
+    UI::AlignTextToFramePadding();
+    UI::Text("Maps with screenshots:");
+    UI::SameLine();
+    if (UI::Button("Refresh##maps-with-screenshots")) {
+        startnew(RefreshMapsWithScreenshots);
+    }
+    // todo: list maps
+}
+
+
+void RefreshMapsWithScreenshots() {
+
+}

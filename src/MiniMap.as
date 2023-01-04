@@ -1,7 +1,7 @@
 namespace MiniMap {
     array<vec3> cpPositions;
     array<array<vec3>> linkedCpPositions;
-    vec3 min, max; // map boundaries
+    vec3 min, max, rawMin, rawMax; // map boundaries
     float maxXZLen;
     array<array<uint>> minimapPlayerObservations;
     bool mmStateInitialized = false;
@@ -39,7 +39,6 @@ namespace MiniMap {
 
     void MiniMapStart() {
         ClearMiniMapState();
-
         while (cpPositions.Length == 0) {
             // get positions of CPs (waits for them to load)
             cpPositions = GetCheckpointPositions();
@@ -64,6 +63,8 @@ namespace MiniMap {
             max.y = Math::Max(max.y, pos.y);
             max.z = Math::Max(max.z, pos.z);
         }
+        rawMin = min;
+        rawMax = max;
         // if this is true, then the xz area is very small;
         // it must be non-zero anyway, so pad it out to guarentee it,
         // and also to provide a minimum minimap size.
@@ -199,7 +200,7 @@ namespace MiniMap {
         auto x = int(p.x);
         auto y = int(p.y);
         int _max = int(S_MiniMapGridParts);
-        if (x < 0 || x > _max || y < 0 || y > _max) return;
+        if (x < 0 || x >= _max || y < 0 || y >= _max) return;
         if (minimapPlayerObservations.Length != _max || minimapPlayerObservations[y].Length != _max) return;
         // sometimes an index OOB exception happens below, so exit if lengths don't seem right
         minimapPlayerObservations[y][x] += uint(lt * onPlayerTick);

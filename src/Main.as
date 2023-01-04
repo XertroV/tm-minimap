@@ -2,6 +2,7 @@ void Main() {
     startnew(MainLoop);
     startnew(Map::UpdateMapInfoLoop);
     startnew(InitSettings);
+    startnew(ScreenShot::Main);
 }
 
 void MainLoop() {
@@ -35,6 +36,8 @@ void RenderMenu() {
 }
 
 void Render() {
+    // render screenshot wizard
+    ScreenShot::Render();
     // if we check GetApp().RootMap here then the minimap can show up in the editor, etc
     if (S_MiniMapEnabled && GetApp().CurrentPlayground !is null && IsEditorConditionCheckOkay)
         MiniMap::Render();
@@ -72,6 +75,5 @@ void InitSettings() {
     yield();
     yield();
     UpdateDefaultSettings();
-    startnew(MiniMap::MiniMapStart);
     MiniMap::bigMiniMap = S_MiniMapState == 2;
 }
