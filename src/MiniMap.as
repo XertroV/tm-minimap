@@ -6,11 +6,17 @@ namespace MiniMap {
     array<array<uint>> minimapPlayerObservations;
     bool mmStateInitialized = false;
     uint debugLogCount = 0;
-    array<vec3> blockPositions;
-    array<int2> blockGridPositions;
+    // array<vec3> blockPositions;
+    // array<int2> blockGridPositions;
+    bool mmIsScreenShot = false;
+    MapWithScreenshot@ mws;
+    nvg::Texture@ mmBgTexture;
 
     void ClearMiniMapState() {
         mmStateInitialized = false;
+        mmIsScreenShot = false;
+        @mws = null;
+        @mmBgTexture = null;
         debugLogCount = 0;
         cpPositions.RemoveRange(0, cpPositions.Length);
         if (minimapPlayerObservations.Length != S_MiniMapGridParts) InitGrid();
@@ -20,15 +26,15 @@ namespace MiniMap {
                 xs[x] = 0;
             }
         }
-        seenBlocks.DeleteAll();
+        // seenBlocks.DeleteAll();
         trace("cleared minimap state.");
     }
 
     void InitGrid() {
-        minimapPlayerObservations.Resize(S_MiniMapGridParts);
+        minimapPlayerObservations.Resize(NbGridParts);
         for (uint i = 0; i < minimapPlayerObservations.Length; i++) {
             auto item = minimapPlayerObservations[i];
-            item.Resize(S_MiniMapGridParts);
+            item.Resize(NbGridParts);
             for (uint j = 0; j < item.Length; j++) {
                 item[j] = 0;
             }
@@ -65,6 +71,34 @@ namespace MiniMap {
         }
         rawMin = min;
         rawMax = max;
+
+        auto map = GetApp().RootMap;
+        if (map !is null) {
+            @mws = GetMapScreenshotOrNull(map.EdChallengeId);
+            if (mws !is null) {
+                MMStart_ScreenShot();
+                return;
+            }
+        }
+        MMStart_InitGrid();
+    }
+
+
+    void MMStart_ScreenShot() {
+        mmIsScreenShot = true;
+        max.x = mws.max.x;
+        max.z = mws.max.y;
+        min.x = mws.min.x;
+        min.z = mws.min.y;
+        maxXZLen = Math::Max(max.z - min.z, max.x - min.x);
+        @mmBgTexture = nvg::LoadTexture(mws.ReadImageFile());
+        if (mmBgTexture is null) {
+            warn("Failed to load texture: " + mws.imgPath);
+        }
+        mmStateInitialized = true;
+    }
+
+    void MMStart_InitGrid() {
         // if this is true, then the xz area is very small;
         // it must be non-zero anyway, so pad it out to guarentee it,
         // and also to provide a minimum minimap size.
@@ -96,10 +130,8 @@ namespace MiniMap {
             min.x -= d/2;
         }
 
-        ConvertBlockPositions();
         // ready to draw; handled by UpdateMiniMap
         mmStateInitialized = true;
-        return;
     }
 
     void UpdateMiniMap(float dt) {
@@ -107,16 +139,21 @@ namespace MiniMap {
         if (!mmStateInitialized) return;
         if (!S_UpdateWhenHidden && S_MiniMapState == 0) return;
         PrepMinMapVars();
-        ObservePlayers();
+        if (!mmIsScreenShot)
+            ObservePlayers();
     }
 
     void Render() {
         if (S_MiniMapState == 0) return;
         if (!mmStateInitialized) return;
-        if (S_DrawGridLines)
-            DrawMMGrid();  // ~0.15ms draw time with 50 cols
-        DrawMiniMapBackground();
-        DrawMiniMapPlayerObservations();
+        if (mmIsScreenShot) {
+            DrawMiniMapBackgroundImage();
+        } else {
+            if (S_DrawGridLines)
+                DrawMMGrid();  // ~0.15ms draw time with 50 cols
+            DrawMiniMapBackground();
+            DrawMiniMapPlayerObservations();
+        }
         // DrawMiniMapBlocks();
         DrawMiniMapCheckpoints();
         DrawMiniMapCheckpointLinks();
@@ -124,12 +161,12 @@ namespace MiniMap {
         DrawMiniMapCamera();
     }
 
-    void ConvertBlockPositions() {
-        blockGridPositions.RemoveRange(0, blockGridPositions.Length);
-        for (uint i = 0; i < blockPositions.Length; i++) {
-            blockGridPositions.InsertLast(WorldToGridPos(blockPositions[i]));
-        }
-    }
+    // void ConvertBlockPositions() {
+    //     blockGridPositions.RemoveRange(0, blockGridPositions.Length);
+    //     for (uint i = 0; i < blockPositions.Length; i++) {
+    //         blockGridPositions.InsertLast(WorldToGridPos(blockPositions[i]));
+    //     }
+    // }
 
 #if DEV
     void TryGettingGhostPositions() {
@@ -154,12 +191,18 @@ namespace MiniMap {
 
     void PrepMinMapVars() {
         sideLen = bigMiniMap ? S_BigMiniMapSize : S_MiniMapSize;
-        spacing = sideLen / S_MiniMapGridParts;
+        spacing = sideLen / NbGridParts;
         wh = F2Vec(sideLen);
         tl = bigMiniMap ? (GetScreenWH() - wh) / 2 : GetScreenWH() * S_MiniMapPosition / 100;
+        if (mmIsScreenShot) {
+            float x = wh.x;
+            wh.x *= mws.aspectRatio;
+            float extra = wh.x - x;
+            tl.x -= extra / (bigMiniMap ? 2. : 1.);
+        }
     }
 
-    uint get_onPlayerTick() { return 3 * S_MiniMapGridParts; }
+    uint get_onPlayerTick() { return 3 * NbGridParts; }
     // for keeping track of where are player hotspots
     float avgObvsPerSquare = 1;
     const uint tickDown = 1;
@@ -179,14 +222,29 @@ namespace MiniMap {
     }
 
     vec2 WorldToGridPosF(vec3 world) {
-        auto gridPos = (world - min) / maxXZLen * S_MiniMapGridParts;
+        if (mmIsScreenShot) {
+            // auto cameraPos = vec3(.x - m_offset.x, CameraHeight, minimapMidPoint.z - m_offset.y);
+            vec2 ret = (mws.ProjectPoint(world) + vec2(1., 1.)) / 2.;
+            ret.x = (1. - ret.x) * mws.aspectRatio;
+            // trace('world: ' + world.ToString() + " -> " + ret.ToString());
+            return ret;
+            // world = (mws.trans * (mat4::Inverse(mws.trans * mws.rot) * world)).xyz * vec3(1, 1, 1);
+        }
+        auto gridPos = (world - min) / maxXZLen * NbGridParts;
         return vec2(gridPos.x, gridPos.z); // +- 0.5?
+
+        // calc screen shot equiv
+        // vec2 xy = vec2(world.x, world.z);
+        // vec3 newPos = (mws.rot * (world - mws.center3)).xyz;
+        // trace('world: ' + world.ToString() + " -> " + newPos.ToString());
+        // auto xy = vec2(newPos.x, newPos.z) / maxXZLen * NbGridParts;
+        // return xy;
     }
 
     void ObservePlayerInWorld(vec3 pos, float weight = 1.0) {
         auto gridPos = WorldToGridPosF(pos);
-        if (gridPos.x < 0 || gridPos.x > float(S_MiniMapGridParts)) return;
-        if (gridPos.y < 0 || gridPos.y > float(S_MiniMapGridParts)) return;
+        if (gridPos.x < 0 || gridPos.x > float(NbGridParts)) return;
+        if (gridPos.y < 0 || gridPos.y > float(NbGridParts)) return;
         NotePlayerAt(gridPos, weight);
     }
     void NotePlayerAt(vec2 p, float weight = 1.0) {
@@ -199,7 +257,7 @@ namespace MiniMap {
         auto lt = (1 - xr) * (1 - yb);
         auto x = int(p.x);
         auto y = int(p.y);
-        int _max = int(S_MiniMapGridParts);
+        int _max = int(NbGridParts);
         if (x < 0 || x >= _max || y < 0 || y >= _max) return;
         if (minimapPlayerObservations.Length != _max || minimapPlayerObservations[y].Length != _max) return;
         // sometimes an index OOB exception happens below, so exit if lengths don't seem right
@@ -222,6 +280,21 @@ namespace MiniMap {
         nvg::ClosePath();
     }
 
+    void DrawMiniMapBackgroundImage() {
+        if (mmBgTexture is null) return;
+        // float oldW = wh.x;
+        // auto imgSize = mmBgTexture.GetSize();
+        // float aspect = imgSize.x / imgSize.y;
+        // auto _wh = vec2(wh.x * aspect, wh.y);
+        // auto _tl = vec2(tl.x - (_wh.x - wh.x), tl.y);
+        nvg::Reset();
+        nvg::BeginPath();
+        nvg::Rect(tl, wh);
+        nvg::FillPaint(nvg::TexturePattern(tl, wh, 0, mmBgTexture, S_BgImageAlpha));
+        nvg::Fill();
+        nvg::ClosePath();
+    }
+
     void DrawMiniMapPlayerObservations() {
         uint totObs = 0; // totalObservations
         uint maxObs = 0;
@@ -234,14 +307,14 @@ namespace MiniMap {
                 DrawPlayerObservationCount(vec2(x, y), count);
                 totObs += count;
                 maxObs = Math::Max(count, maxObs);
-                reduce = !S_FadeGridSquares ? 0 : Math::Max(tickDown, uint(xs[x] / S_MiniMapGridParts / S_GridSquarePersistence)); // should reduce larger numbers faster than relying on tickdown
+                reduce = !S_FadeGridSquares ? 0 : Math::Max(tickDown, uint(xs[x] / NbGridParts / S_GridSquarePersistence)); // should reduce larger numbers faster than relying on tickdown
                 if (count >= reduce)
                     xs[x] -= reduce;
                 else
                     xs[x] = 0;
             }
         }
-        float totalSqs = float(S_MiniMapGridParts * S_MiniMapGridParts);
+        float totalSqs = float(NbGridParts * NbGridParts);
         avgObvsPerSquare = float(totObs) / totalSqs;
     }
 
@@ -311,12 +384,12 @@ namespace MiniMap {
 
     vec4 GridSqColor(uint count) {
         if (count == 0 || avgObvsPerSquare < 0.0001) return vec4();
-        auto ret = F4Vec(Math::Min(1.0, float(count) * S_MiniMapGridParts / 10000));
+        auto ret = F4Vec(Math::Min(1.0, float(count) * NbGridParts / 10000));
         return ret;
     }
 
     void DrawMMGrid() {
-        float parts = float(S_MiniMapGridParts);
+        float parts = float(NbGridParts);
         float partWidth = sideLen / parts;
         nvg::Reset();
         nvg::BeginPath();
@@ -335,9 +408,16 @@ namespace MiniMap {
         nvg::LineTo(xy + (vertical ? vec2(0, len) : vec2(len, 0)));
     }
 
+    int NbGridParts {
+        get {
+            return mmIsScreenShot ? 1 : S_MiniMapGridParts;
+        }
+    }
+
     vec4 GetMMPosRect(vec2 pos) {
-        auto xy = tl + pos * wh / float(S_MiniMapGridParts);
-        auto _wh = wh / S_MiniMapGridParts;
+        float mmGridParts = NbGridParts;
+        vec2 xy = tl + pos * wh.y / mmGridParts;
+        vec2 _wh = wh / mmGridParts;
         return vec4(xy.x, xy.y, _wh.x, _wh.y);
     }
 
@@ -354,8 +434,12 @@ namespace MiniMap {
         if (dir.x == dir.z && dir.z == 0) {
             shape = MiniMapShapes::Circle;
         }
+        if (mmIsScreenShot) {
+            dir = (mat4::Inverse(mws.imgRot) * dir).xyz * -1.;
+        }
         size = size * ScaleFactor;
-        vec4 rect = GetMMPosRect(pos + F2Vec(.5));
+        vec2 _off = mmIsScreenShot ? vec2() : F2Vec(.5);
+        vec4 rect = GetMMPosRect(pos + _off);
         nvg::Reset();
         nvg::BeginPath();
         switch (shape) {

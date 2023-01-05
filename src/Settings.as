@@ -80,7 +80,12 @@ MiniMapShapes S_Camera_Shape = MiniMapShapes::Arrow;
 [Setting category="Advanced" name="Allow Minimap in Editor?" description="The minimap will be disabled in the editor unless this is checked."]
 bool S_AllowInEditor = false;
 
-[SettingsTab name="Background Images" icon="PictureO"]
+[Setting category="Bg Image Settings" name="BG Alpha" min="0.0" max="1.0"]
+float S_BgImageAlpha = 0.5;
+
+
+
+[SettingsTab name="Bg Image Wizard" icon="PictureO"]
 void Render_S_BackgroundImages() {
     if (!Permissions::OpenAdvancedMapEditor()) {
         UI::Text("Sorry, this feature is only available with club access.");
@@ -95,15 +100,28 @@ void Render_S_BackgroundImages() {
     UI::EndDisabled();
     UI::Separator();
     UI::AlignTextToFramePadding();
-    UI::Text("Maps with screenshots:");
+    UI::Text("Maps with screenshots (" + mapsWithScreenshots.Length + ")  ");
     UI::SameLine();
     if (UI::Button("Refresh##maps-with-screenshots")) {
         startnew(RefreshMapsWithScreenshots);
     }
     // todo: list maps
-}
+    if (UI::BeginTable("mws list", 3, UI::TableFlags::SizingStretchProp)) {
+        UI::TableSetupColumn("Name");
+        UI::TableSetupColumn("Author");
+        UI::TableSetupColumn("UID");
+        UI::TableHeadersRow();
+        for (uint i = 0; i < mapsWithScreenshots.Length; i++) {
+            auto mws = mapsWithScreenshots[i];
+            UI::TableNextRow();
+            UI::TableNextColumn();
+            UI::Text(ColoredString(mws.mapName));
+            UI::TableNextColumn();
+            UI::Text(ColoredString(mws.mapAuthor));
+            UI::TableNextColumn();
+            UI::Text(ColoredString(mws.mapUid));
 
-
-void RefreshMapsWithScreenshots() {
-
+        }
+        UI::EndTable();
+    }
 }

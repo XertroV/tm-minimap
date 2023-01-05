@@ -3,6 +3,7 @@ void Main() {
     startnew(Map::UpdateMapInfoLoop);
     startnew(InitSettings);
     startnew(ScreenShot::Main);
+    startnew(RefreshMapsWithScreenshots);
 }
 
 void MainLoop() {

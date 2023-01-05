@@ -2,7 +2,7 @@ vec3 CoordToPos(nat3 coord) {
     return vec3(coord.x * 32, coord.y * 8, coord.z * 32);
 }
 
-dictionary seenBlocks;
+// dictionary seenBlocks;
 
 
 

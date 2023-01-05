@@ -5,6 +5,7 @@ namespace ScreenShot {
 
     string mapName;
     string mapUid;
+    string mapAuthor;
 
     // resolution (px) of the screenshot
     int2 shotRes = int2(3840, 2160);
@@ -138,14 +139,7 @@ namespace ScreenShot {
     }
 
     void UpdateShotResY() {
-        shotRes.y = shotRes.x / (
-            S_Wiz_Aspect == Aspect::Square ? 1.
-            : S_Wiz_Aspect == Aspect::r4By3 ? 4. / 3.
-            : S_Wiz_Aspect == Aspect::r16by10 ? 16. / 10.
-            : S_Wiz_Aspect == Aspect::r16by9 ? 16. / 9.
-            : S_Wiz_Aspect == Aspect::Ultrawide ? 21. / 9.
-            : 1.
-        );
+        shotRes.y = shotRes.x / AspectToRatio(S_Wiz_Aspect);
     }
 
     vec2 ProjectPoint(vec3 pos) {
@@ -271,6 +265,7 @@ namespace ScreenShot {
         return true;
     }
 
+    vec2 selectMapBtnPos = vec2(0, 200);
     void RenderStart() {
         UI::Text("Open your desired map in the advanced editor.");
         UI::Separator();
@@ -283,6 +278,7 @@ namespace ScreenShot {
         }
         UI::Separator();
         UI::BeginDisabled(GetApp().RootMap is null || editor is null);
+        selectMapBtnPos = UI::GetCursorPos();
         if (UI::Button("Yep, that's the right map.")) {
             startnew(OnLoadedMapInEditor);
         }
@@ -295,7 +291,8 @@ namespace ScreenShot {
         UI::Text("I need to get the coordinates for all of the CPs.");
         UI::TextWrapped("I'm going to automate going into validation mode and will get the CP data, when you're ready.");
         // UI::TextWrapped("\\$<\\$fd1Note: If there is a mediatracker intro, I'm unable to automatically skip it. Please skip it for me.\\$>");
-        UI::Dummy(vec2(0, UI::GetTextLineHeightWithSpacing() * 2.5));
+        // UI::Dummy(vec2(0, UI::GetTextLineHeightWithSpacing() * 2.5));
+        UI::SetCursorPos(selectMapBtnPos);
         if (UI::Button("I'm Ready, Automate Away.##get-cps")) {
             startnew(OnBeginValidationAuto);
         }
@@ -322,6 +319,7 @@ namespace ScreenShot {
     bool m_autoUpdateCamera = true;
 
     void RenderInMediaTracker() {
+        ShowShotPreviewOutline();
         auto mtEditor = cast<CGameEditorMediaTracker>(GetApp().Editor);
         if (mtEditor is null) {
             AdvanceStep(-1);
@@ -433,7 +431,18 @@ namespace ScreenShot {
     }
 
     void RenderComplete() {
-
+        UI::Text("Done!");
+        UI::Dummy(vec2(250, 20));
+        if (UI::Button("Back to start -- do another map.")) {
+            currStage = WizStage::Uninitialized;
+            InitWizard();
+            cast<CGameManiaPlanet>(GetApp()).BackToMainMenu();
+        }
+        UI::Dummy(vec2(250, 20));
+        if (UI::Button("Close")) {
+            currStage = WizStage::Uninitialized;
+            cast<CGameManiaPlanet>(GetApp()).BackToMainMenu();
+        }
     }
 
 
@@ -470,6 +479,15 @@ namespace ScreenShot {
         Last
     }
 
+    float AspectToRatio(Aspect a) {
+        return a == Aspect::Square ? 1.
+        : a == Aspect::r4By3 ? 4. / 3.
+        : a == Aspect::r16by10 ? 16. / 10.
+        : a == Aspect::r16by9 ? 16. / 9.
+        : a == Aspect::Ultrawide ? 21. / 9.
+        : 1.;
+    }
+
     [Setting hidden]
     Aspect S_Wiz_Aspect = Aspect::r16by9;
 
@@ -492,6 +510,7 @@ namespace ScreenShot {
         UI::SameLine(); if (UI::Button("3840")) shotRes.x = 3840;
         UI::SameLine(); if (UI::Button("5120")) shotRes.x = 5120;
         UI::SameLine(); if (UI::Button("7680")) shotRes.x = 7680;
+        if (shotRes.x > 5120) TextWExclaimation("High resolution shots can crash TM and you may notice effects of LoD (overly simple level geometry). Tweaker can help with LoD, but may increase the risk of a crash.");
 
         if (UI::BeginCombo("Aspect", tostring(S_Wiz_Aspect))) {
             for (int i = 0; i < int(Aspect::Last); i++) {
@@ -504,9 +523,15 @@ namespace ScreenShot {
         }
 
         auto mapMaxDims = Math::Max(mapMax.x - mapMin.x, mapMax.z - mapMin.x) * 1.1;
-        m_offset = UI::SliderFloat2("Offset (x,y)", m_offset, -mapMaxDims, mapMaxDims, "%.0f");
+        m_offset.x = Math::Clamp(UI::InputFloat("Offset x", m_offset.x, 8.), -mapMaxDims, mapMaxDims);
         UI::SameLine();
-        if (UI::Button(Icons::Refresh + "##reset-offset")) m_offset = vec2(0, 0);
+        if (UI::Button(Icons::Refresh + "##reset-offset")) m_offset.x = 0;
+        m_offset.y = Math::Clamp(UI::InputFloat("Offset y", m_offset.y, 8.), -mapMaxDims, mapMaxDims);
+        UI::SameLine();
+        if (UI::Button(Icons::Refresh + "##reset-offset2")) m_offset.y = 0;
+        // m_offset = UI::SliderFloat2("Offset (x,y)", m_offset, -mapMaxDims, mapMaxDims, "%.0f");
+        // UI::SameLine();
+        // if (UI::Button(Icons::Refresh + "##reset-offset2")) m_offset = vec2(0, 0);
 
         m_Rotation = UI::InputFloat("Rotation (degrees)", m_Rotation, 0.5);
         m_Rotation = Math::Clamp(m_Rotation, -180., 540.);
@@ -545,6 +570,31 @@ namespace ScreenShot {
         }
     }
 
+    void ShowShotPreviewOutline() {
+        auto cam = Camera::GetCurrent();
+        vec2 screen = vec2(Draw::GetWidth(), Draw::GetHeight());
+        vec2 uvTL = vec2(-cam.DrawRectMin.x, -cam.DrawRectMax.y);
+        vec2 uvBR = vec2(-cam.DrawRectMax.x, -cam.DrawRectMin.y);
+        vec2 tlCam = (uvTL / 2. + vec2(.5, .5)) * screen;
+        vec2 brCam = (uvBR / 2. + vec2(.5, .5)) * screen;
+
+        vec2 pos, size;
+        size = brCam - tlCam;
+        vec2 camCenter = tlCam + size / 2.;
+        vec2 shotSize = vec2(size.y * AspectRatio, size.y);
+        pos = camCenter - shotSize / 2.;
+        size = shotSize;
+        // draw a rectangle over the MT camera view to aid map positioning.
+        nvg::Reset();
+        nvg::BeginPath();
+        nvg::Rect(pos, size);
+        nvg::StrokeColor(vec4(.9, .5, 0, .9));
+        nvg::StrokeWidth(Draw::GetHeight() / 150.);
+        nvg::Stroke();
+        nvg::ClosePath();
+    }
+
+
 
 
 
@@ -559,6 +609,7 @@ namespace ScreenShot {
         auto map = GetApp().RootMap;
         mapName = map.MapName;
         mapUid = map.EdChallengeId;
+        mapAuthor = map.AuthorNickName;
         AdvanceStep();
     }
 
@@ -592,9 +643,6 @@ namespace ScreenShot {
         // extend bounds by a standard block size
         mapMin = MiniMap::rawMin;
         mapMax = MiniMap::rawMax + vec3(32, 8, 32);
-        // extend bounds by half a standard block size each way
-        // mapMin = MiniMap::rawMin - vec3(16, 4, 16);
-        // mapMax = MiniMap::rawMax + vec3(16, 4, 16);
         trace('cached cp positions and stuff');
         yield();
         while (!app.Network.PlaygroundInterfaceScriptHandler.IsInGameMenuDisplayed) {
@@ -829,6 +877,7 @@ namespace ScreenShot {
         if (IO::FileExists(CurrScreenShotFilePath)) {
             IO::Delete(CurrScreenShotFilePath);
         }
+        sleep(250);
         yield();
         shootParams.OnOk();
         AdvanceStep();
@@ -857,7 +906,7 @@ namespace ScreenShot {
     }
 
     void OnLikeScreenshot() {
-        SaveMapJsonData();
+        startnew(SaveMapJsonData);
         AdvanceStep();
     }
 
@@ -866,6 +915,7 @@ namespace ScreenShot {
         j['version'] = 1;
         j['name'] = mapName;
         j['uid'] = mapUid;
+        j['author'] = mapAuthor;
         j['aspect'] = int(S_Wiz_Aspect);
         j['rotation'] = m_Rotation;
         j['padding.x'] = m_padding.x;
@@ -876,12 +926,19 @@ namespace ScreenShot {
         j['min.y'] = mapMin.y;
         j['max.x'] = mapMax.x;
         j['max.y'] = mapMax.y;
+        j['camPos.x'] = cameraPos.x;
+        j['camPos.y'] = cameraPos.y;
+        j['camPos.z'] = cameraPos.z;
+        j['fov'] = cameraFov;
         Json::ToFile(DestMapInfoJsonFilePath, j);
+        startnew(RefreshMapsWithScreenshots);
     }
 }
 
 
-
+void TextWExclaimation(const string &in msg) {
+    UI::TextWrapped("\\$fd1" + Icons::ExclamationCircle + "\\$z  " + msg);
+}
 
 
 /**
