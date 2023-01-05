@@ -81,6 +81,11 @@ MiniMapShapes S_Camera_Shape = MiniMapShapes::QuadArrow;
 [Setting category="Advanced" name="Allow Minimap in Editor?" description="The minimap will be disabled in the editor unless this is checked."]
 bool S_AllowInEditor = false;
 
+[Setting category="Advanced" name="Disable small minimap?" description="The minimap will toggle between large and off only."]
+bool S_DisableSmallMinimap = false;
+
+
+
 [Setting category="Bg Image Settings" name="BG Alpha" min="0.0" max="1.0"]
 float S_BgImageAlpha = 0.5;
 

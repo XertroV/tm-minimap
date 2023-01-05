@@ -47,6 +47,7 @@ void Render() {
 UI::InputBlocking OnKeyPress(bool down, VirtualKey key) {
     if (S_MiniMapEnabled && key == S_ShortcutKey && down && IsEditorConditionCheckOkay && GetApp().CurrentPlayground !is null) {
         S_MiniMapState = (S_MiniMapState + 1) % 3; // off, small, big
+        if (S_DisableSmallMinimap && S_MiniMapState == 1) S_MiniMapState = 2;
         MiniMap::bigMiniMap = S_MiniMapState == 2;
     }
     return UI::InputBlocking::DoNothing;
