@@ -433,6 +433,13 @@ namespace MiniMap {
         DrawMarkerAt(pos, dir, vec3(0, 1, 0), col, shape, size);
     }
 
+    mat4 ImageRotation {
+        get {
+            if (mmIsScreenShot) return mws.imgRot;
+            return mat4::Identity();
+        }
+    }
+
     void DrawMarkerAt(vec2 pos, vec3 dir, vec3 up, vec4 col, MiniMapShapes shape, float size) {
         // if there is no xz component to the direction vector, make the shape a circle.
         if (dir.x == dir.z && dir.z == 0) {
@@ -441,7 +448,7 @@ namespace MiniMap {
         float rotateAroundDir = Math::Angle(up, vec3(0, 1, 0));
         if (mmIsScreenShot) {
             // dir = (mat4::Inverse(mws.imgRot) * dir).xyz * -1.;
-            dir = (mws.imgRot * dir).xyz;
+            dir = (mat4::Inverse(ImageRotation) * dir).xyz * -1;
         }
         size = size * ScaleFactor;
         vec2 _off = mmIsScreenShot ? vec2() : F2Vec(.5);
