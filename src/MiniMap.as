@@ -358,7 +358,7 @@ namespace MiniMap {
         if (GetApp().GameScene is null) return;
         auto viss = VehicleState::GetAllVis(GetApp().GameScene);
         for (uint i = 0; i < viss.Length; i++) {
-            DrawMarkerAt(WorldToGridPosF(viss[i].AsyncState.Position), viss[i].AsyncState.Dir, S_Player_Color, S_Player_Shape, S_Player_Size);
+            DrawMarkerAt(WorldToGridPosF(viss[i].AsyncState.Position), viss[i].AsyncState.Dir, viss[i].AsyncState.Up, S_Player_Color, S_Player_Shape, S_Player_Size);
         }
     }
 
@@ -430,30 +430,38 @@ namespace MiniMap {
     }
 
     void DrawMarkerAt(vec2 pos, vec3 dir, vec4 col, MiniMapShapes shape, float size) {
+        DrawMarkerAt(pos, dir, vec3(0, 1, 0), col, shape, size);
+    }
+
+    void DrawMarkerAt(vec2 pos, vec3 dir, vec3 up, vec4 col, MiniMapShapes shape, float size) {
         // if there is no xz component to the direction vector, make the shape a circle.
         if (dir.x == dir.z && dir.z == 0) {
             shape = MiniMapShapes::Circle;
         }
+        float rotateAroundDir = 0;
         if (mmIsScreenShot) {
-            dir = (mat4::Inverse(mws.imgRot) * dir).xyz * -1.;
+            // dir = (mat4::Inverse(mws.imgRot) * dir).xyz * -1.;
+            dir = (mws.imgRot * dir).xyz;
+            rotateAroundDir = Math::Angle(up, vec3(0, 1, 0));
         }
         size = size * ScaleFactor;
         vec2 _off = mmIsScreenShot ? vec2() : F2Vec(.5);
         vec4 rect = GetMMPosRect(pos + _off);
         nvg::Reset();
         nvg::BeginPath();
+        auto dir2 = vec2(dir.x, dir.z);
         switch (shape) {
             case MiniMapShapes::Circle:
                 nvg::Circle(rect.xyz.xy, size / 2);
             break;
             case MiniMapShapes::Arrow:
-                nvgArrow(rect.xyz.xy, size, vec2(dir.x, dir.z), col);
+                nvgArrow(rect.xyz.xy, size, dir, rotateAroundDir, col);
             break;
             case MiniMapShapes::TriArrow:
-                nvgTriArrow(rect.xyz.xy, size, vec2(dir.x, dir.z), col);
+                nvgTriArrow(rect.xyz.xy, size, dir2, col);
             break;
             case MiniMapShapes::QuadArrow:
-                nvgQuadArrow(rect.xyz.xy, size, vec2(dir.x, dir.z), col);
+                nvgQuadArrow(rect.xyz.xy, size, dir2, col);
             break;
             case MiniMapShapes::Square:
             default:
@@ -473,6 +481,7 @@ namespace MiniMap {
     mat3 rotate180 = mat3::Rotate(TAU / 2.);
     mat3 rotateRight90 = mat3::Rotate(- TAU / 4.);
 
+    mat4 rotate4Left90 = mat4::Rotate(-TAU / 4., vec3(0, 1, 0));
 
     /**
      * something like this:
@@ -481,26 +490,42 @@ namespace MiniMap {
      *    / /\ \
      *    V    V
      */
-    void nvgArrow(vec2 pos, float size, vec2 &in dir, vec4 col) {
+    void nvgArrow(vec2 pos, float size, vec3 &in dir, float angle, vec4 col) {
+        auto p3 = vec3(pos.x, 0, pos.y);
         auto dirNormd = dir.Normalized();
         // shift pos back a bit to center the arrow better
         // pos -= dirNormd * .25;
-        auto dirLeft = (rotateLeft90 * dirNormd).xy;
-        auto tip = pos + dirNormd * size;
-        auto bl = pos + (dirLeft - dirNormd) * size / 1.7;
-        auto br = pos - (dirLeft + dirNormd) * size / 1.7;
+        auto dirLeft = (rotate4Left90 * dirNormd).xyz;
+        vec3 tip = dirNormd * size;
+        vec3 bl = (dirLeft - dirNormd) * size / 1.7;
+        vec3 br = (dirLeft + dirNormd) * size / -1.7;
 
-        nvg::MoveTo(tip);
-        nvg::LineTo(br);
+        // rotations
+        // mat4::Inverse
+        auto tmpRot = mat4::Rotate(angle, dir);
+        tip = (tmpRot * tip).xyz;// * -1;
+        bl = (tmpRot * bl).xyz;// * -1;
+        br = (tmpRot * br).xyz;// * -1;
+
+        tip += p3;
+        bl += p3;
+        br += p3;
+
+        auto tip2 = vec2(tip.x, tip.z);
+        auto bl2 = vec2(bl.x, bl.z);
+        auto br2 = vec2(br.x, br.z);
+
+        nvg::MoveTo(tip2);
+        nvg::LineTo(br2);
         nvg::LineTo(pos);
-        nvg::LineTo(tip);
+        nvg::LineTo(tip2);
         nvgIndicatorStrokeFill(col);
         nvg::ClosePath();
         nvg::BeginPath();
-        nvg::MoveTo(tip);
+        nvg::MoveTo(tip2);
         nvg::LineTo(pos);
-        nvg::LineTo(bl);
-        nvg::LineTo(tip);
+        nvg::LineTo(bl2);
+        nvg::LineTo(tip2);
     }
 
     void nvgQuadArrow(vec2 pos, float size, vec2 &in dir, vec4 col) {
