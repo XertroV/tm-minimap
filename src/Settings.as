@@ -37,6 +37,11 @@ int S_MiniMapState = 1; // 0=off, 1=small, 2=big
 [Setting category="MiniMap" name="Update When Hidden?" description="Keep track of players locations when the minimap is hidden? (Low performance impact; ~0.2ms / frame with 30 players.)"]
 bool S_UpdateWhenHidden = true;
 
+
+
+[Setting category="Appearance" name="Big MiniMap BG Color" color]
+vec4 S_BigBg_Color = vec4(0.0f, 0.0f, 0.0f, .2f);
+
 [Setting category="Appearance" name="CP Color" color]
 vec4 S_CP_Color = vec4(0.055f, 0.780f, 0.118f, 1.000f);
 
@@ -84,6 +89,9 @@ bool S_AllowInEditor = false;
 [Setting category="Advanced" name="Disable small minimap?" description="The minimap will toggle between large and off only."]
 bool S_DisableSmallMinimap = false;
 
+[Setting category="Advanced" name="Disable BG Images (Grid view only)" description="Disable background images even if they're found -- useful for testing."]
+bool S_DisableBackgroundImages = false;
+
 
 
 [Setting category="Bg Image Settings" name="BG Alpha" min="0.0" max="1.0"]
@@ -101,6 +109,8 @@ void Render_S_BackgroundImages() {
     UI::TextWrapped("Use the wizard to take new screenshots:");
     UI::BeginDisabled(ScreenShot::currStage != ScreenShot::WizStage::Uninitialized);
     if (UI::Button("Start Wizard")) {
+        // need to enable the minimap otherwise wizard won't gather details
+        S_MiniMapEnabled = true;
         ScreenShot::InitWizard();
     }
     UI::EndDisabled();

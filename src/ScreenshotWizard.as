@@ -159,9 +159,9 @@ namespace ScreenShot {
         auto minTest = mapMin - pad - m_offset;
         auto maxTest = mapMax + pad - m_offset;
         maxTest.y = minTest.y;
-        float fovUpper = 90.;
+        float fovUpper = 180.;
         float fovLower = 0.1;
-        cameraFov = Math::Clamp(cameraFov, 1., 90.);
+        cameraFov = Math::Clamp(cameraFov, fovLower, fovUpper);
         CalcProjectionMatricies(cameraFov);
         uint count = 0;
         while (FovError(minTest, maxTest) > 0.001) {
@@ -172,7 +172,7 @@ namespace ScreenShot {
                 fovLower = cameraFov;
             }
             cameraFov = (fovUpper + fovLower) / 2.;
-            print("new fov: " + cameraFov);
+            // print("new fov: " + cameraFov);
             CalcProjectionMatricies(cameraFov);
             if (count > 40) {
                 warn("SearchForFoVAndSetProjection looped too much; breaking");
@@ -519,7 +519,7 @@ namespace ScreenShot {
             UI::EndCombo();
         }
 
-        auto mapMaxDims = Math::Max(mapMax.x - mapMin.x, mapMax.z - mapMin.x) * 1.1;
+        auto mapMaxDims = Math::Max(mapMax.x - mapMin.x, mapMax.z - mapMin.x) * 3.1;
         m_offset.x = Math::Clamp(UI::InputFloat("Offset x", m_offset.x, 8.), -mapMaxDims, mapMaxDims);
         UI::SameLine();
         if (UI::Button(Icons::Refresh + "##reset-offset")) m_offset.x = 0;

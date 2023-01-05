@@ -75,7 +75,7 @@ namespace MiniMap {
         auto map = GetApp().RootMap;
         if (map !is null) {
             @mws = GetMapScreenshotOrNull(map.EdChallengeId);
-            if (mws !is null) {
+            if (mws !is null && !S_DisableBackgroundImages) {
                 MMStart_ScreenShot();
                 return;
             }
@@ -138,7 +138,6 @@ namespace MiniMap {
         if (!IsEditorConditionCheckOkay) return;
         if (!mmStateInitialized) return;
         if (!S_UpdateWhenHidden && S_MiniMapState == 0) return;
-        PrepMinMapVars();
         if (!mmIsScreenShot)
             ObservePlayers();
     }
@@ -146,6 +145,9 @@ namespace MiniMap {
     void Render() {
         if (S_MiniMapState == 0) return;
         if (!mmStateInitialized) return;
+        PrepMinMapVars();
+        // don't display when the menu is open
+        if (GetApp().Network.PlaygroundClientScriptAPI.IsInGameMenuDisplayed) return;
         if (mmIsScreenShot) {
             DrawMiniMapBackgroundImage();
         } else {

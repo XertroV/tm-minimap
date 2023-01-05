@@ -14,13 +14,20 @@ void MainLoop() {
             MiniMap::MiniMapStart();
             // if map loop ends early, then don't reset while current playground !is null
             while (GetApp().CurrentPlayground !is null) yield();
+        } else {
+            // trace('S_MiniMapEnabled: ' + tostring(S_MiniMapEnabled));
+            // trace('cp !is null: ' + tostring(GetApp().CurrentPlayground !is null));
+            // trace('editor check: ' + tostring(IsEditorConditionCheckOkay));
+            // trace('editor !is null: ' + tostring(GetApp().Editor !is null));
+            // trace('curr stage: ' + int(ScreenShot::currStage) + ', ' + tostring(ScreenShot::currStage));
+            // sleep(1000);
         }
     }
 }
 
 // replaces condition: Editor is null
 bool get_IsEditorConditionCheckOkay() {
-    return S_AllowInEditor || GetApp().Editor is null || ScreenShot::currStage != ScreenShot::WizStage::Uninitialized;
+    return S_AllowInEditor || GetApp().Editor is null || int(ScreenShot::currStage) > 0;
 }
 
 void Update(float dt) {
