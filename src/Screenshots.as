@@ -1,7 +1,7 @@
 class MapWithScreenshot {
     vec2 padding, offset, min, max, center;
     vec3 min3, max3, center3, camPos;
-    float rotation;
+    float rotation, camPitch;
     string mapUid, imgPath, jsonPath, mapName, mapAuthor;
     Json::Value@ j;
     ScreenShot::Aspect aspect;
@@ -24,14 +24,13 @@ class MapWithScreenshot {
         max3 = vec3(max.x, 0, max.y);
         center3 = vec3(center.x, 0, center.y);
         camPos = vec3(j['camPos.x'], j['camPos.y'], j['camPos.z']);
-        // camPos = vec3(center.x - offset.x, 30000, center.y - offset.y);
         rotation = j['rotation'];
+        camPitch = j.Get('camPitch', -90);
         fov = j['fov'];
         aspect = ScreenShot::Aspect(int(j['aspect']));
         aspectRatio = ScreenShot::AspectToRatio(aspect);
-        imgRot = mat4::Rotate(Math::ToRad(rotation), vec3(0, -1, 0));
-        rot = imgRot * mat4::Rotate(Math::ToRad(-90), vec3(1, 0, 0));
-        // trans = mat4::Translate(vec3(center.x - offset.x, 0, center.y - offset.y));
+        imgRot = mat4::Rotate(Math::ToRad(rotation), vec3(0, 1, 0));
+        rot = imgRot * mat4::Rotate(Math::ToRad(camPitch), vec3(-1, 0, 0));
         trans = mat4::Translate(camPos);
         untrans = mat4::Inverse(trans);
         unrot = mat4::Inverse(rot);

@@ -1,6 +1,7 @@
 namespace ScreenShot {
     vec3 cameraPos;
     vec3 cameraPitchYawRoll;
+    float camPitch = -90;
     float cameraFov = 10.;
 
     string mapName;
@@ -117,7 +118,7 @@ namespace ScreenShot {
     [Setting hidden]
     vec2 m_padding = vec2(5, 5);
     [Setting hidden]
-    vec2 m_offset = vec2(0, 0);
+    vec3 m_offset = vec3(0, 0, 0);
 
     float AspectRatio {
         get {
@@ -127,14 +128,17 @@ namespace ScreenShot {
     }
 
     void UpdateMatricies() {
-        auto custRotation = mat4::Rotate(Math::ToRad(m_Rotation), vec3(0, -1, 0));
+        auto custRotation = mat4::Rotate(Math::ToRad(m_Rotation), vec3(0, 1, 0));
         // rotate around z axis to point down, then apply custom rotation
-        rotation = custRotation * mat4::Rotate(Math::ToRad(-90), vec3(1, 0, 0));
+        rotation = custRotation * mat4::Rotate(Math::ToRad(-camPitch), vec3(1, 0, 0));
+        auto rotDifference = mat4::Rotate(-Math::ToRad(camPitch + 90), vec3(1, 0, 0));
         vec3 minimapMidPoint = (mapMax + mapMin) / 2.;
-        cameraPos = vec3(minimapMidPoint.x - m_offset.x, CameraHeight, minimapMidPoint.z - m_offset.y);
+        // if camPitch is not -90, we want to update our position so it's looking at the map midpoint
+        vec3 camBase = (custRotation * rotDifference * vec3(0, CameraHeight, 0)).xyz;
+        cameraPos = camBase + minimapMidPoint - m_offset;
         translation = mat4::Translate(cameraPos);
         UpdateShotResY();
-        cameraPitchYawRoll = vec3(90, 0, m_Rotation);
+        cameraPitchYawRoll = vec3(-camPitch, m_Rotation, 0);
         SearchForFoVAndSetProjection();
     }
 
@@ -152,8 +156,8 @@ namespace ScreenShot {
     void SearchForFoVAndSetProjection() {
         auto mapSize = mapMax - mapMin;
         vec3 pad = vec3(mapSize.x * m_padding.x, 0, mapSize.z * m_padding.y) / 100.;
-        auto minTest = mapMin - pad - vec3(m_offset.x, 0, m_offset.y);
-        auto maxTest = mapMax + pad - vec3(m_offset.x, 0, m_offset.y);
+        auto minTest = mapMin - pad - m_offset;
+        auto maxTest = mapMax + pad - m_offset;
         maxTest.y = minTest.y;
         float fovUpper = 90.;
         float fovLower = 0.1;
@@ -168,7 +172,7 @@ namespace ScreenShot {
                 fovLower = cameraFov;
             }
             cameraFov = (fovUpper + fovLower) / 2.;
-            // print("new fov: " + cameraFov);
+            print("new fov: " + cameraFov);
             CalcProjectionMatricies(cameraFov);
             if (count > 40) {
                 warn("SearchForFoVAndSetProjection looped too much; breaking");
@@ -189,21 +193,12 @@ namespace ScreenShot {
     float FovError(vec3 minTest, vec3 maxTest) {
         fovMinTestRes = ProjectPoint(minTest);
         fovMaxTestRes = ProjectPoint(maxTest);
-        fovMaxUV = Math::Max(
-            Math::Max(Math::Abs(fovMinTestRes.x), Math::Abs(fovMinTestRes.y)),
-            Math::Max(Math::Abs(fovMaxTestRes.x), Math::Abs(fovMaxTestRes.y))
-        );
-        // also check the alternate extreme corners
-        auto tmp = minTest.x;
-        minTest.x = maxTest.x;
-        maxTest.x = tmp;
-        fovMinTestRes = ProjectPoint(minTest);
-        fovMaxTestRes = ProjectPoint(maxTest);
-        // take max of new and old results
-        fovMaxUV = Math::Max(fovMaxUV, Math::Max(
-            Math::Max(Math::Abs(fovMinTestRes.x), Math::Abs(fovMinTestRes.y)),
-            Math::Max(Math::Abs(fovMaxTestRes.x), Math::Abs(fovMaxTestRes.y))
-        ));
+        fovMaxUV = 0;
+        for (uint i = 0; i < 8; i++) {
+            auto p = vec3(i & 1 == 0 ? minTest.x : maxTest.x, i & 2 == 0 ? minTest.y : maxTest.y, i & 4 == 0 ? minTest.z : maxTest.z);
+            auto res = ProjectPoint(p);
+            fovMaxUV = Math::Max(fovMaxUV, Math::Max(Math::Abs(res.x), Math::Abs(res.y)));
+        }
         return Math::Abs(fovMaxUV - 1.);
     }
 
@@ -320,6 +315,7 @@ namespace ScreenShot {
 
     void RenderInMediaTracker() {
         ShowShotPreviewOutline();
+        ShowTestPointsCube();
         auto mtEditor = cast<CGameEditorMediaTracker>(GetApp().Editor);
         if (mtEditor is null) {
             AdvanceStep(-1);
@@ -499,6 +495,7 @@ namespace ScreenShot {
         auto origRot = m_Rotation;
         auto origAspect = S_Wiz_Aspect;
         auto origOffset = m_offset;
+        auto origPitch = camPitch;
 
         if (shotRes.x == 0) {
             shotRes.x = Draw::GetWidth();
@@ -526,18 +523,24 @@ namespace ScreenShot {
         m_offset.x = Math::Clamp(UI::InputFloat("Offset x", m_offset.x, 8.), -mapMaxDims, mapMaxDims);
         UI::SameLine();
         if (UI::Button(Icons::Refresh + "##reset-offset")) m_offset.x = 0;
-        m_offset.y = Math::Clamp(UI::InputFloat("Offset y", m_offset.y, 8.), -mapMaxDims, mapMaxDims);
+        m_offset.y = UI::InputFloat("Offset y", m_offset.y, 24.);
         UI::SameLine();
         if (UI::Button(Icons::Refresh + "##reset-offset2")) m_offset.y = 0;
+        m_offset.z = Math::Clamp(UI::InputFloat("Offset z", m_offset.z, 8.), -mapMaxDims, mapMaxDims);
+        UI::SameLine();
+        if (UI::Button(Icons::Refresh + "##reset-offset3")) m_offset.z = 0;
         // m_offset = UI::SliderFloat2("Offset (x,y)", m_offset, -mapMaxDims, mapMaxDims, "%.0f");
         // UI::SameLine();
         // if (UI::Button(Icons::Refresh + "##reset-offset2")) m_offset = vec2(0, 0);
+
+        camPitch = Math::Clamp(UI::InputFloat("Camera Pitch", camPitch, 0.5), -90., 90.);
+        UI::SameLine(); if (UI::Button(Icons::Refresh + "##reset-pitch")) camPitch = -90;
 
         m_Rotation = UI::InputFloat("Rotation (degrees)", m_Rotation, 0.5);
         m_Rotation = Math::Clamp(m_Rotation, -180., 540.);
         UI::SameLine(); if (UI::Button(Icons::Refresh + "##reset-rotation")) m_Rotation = 0.;
 
-        if (origHR != shotRes.x || m_Rotation != origRot || origAspect != S_Wiz_Aspect || !Vec2Eq(origOffset, m_offset)) {
+        if (origHR != shotRes.x || m_Rotation != origRot || origAspect != S_Wiz_Aspect || !Vec3Eq(origOffset, m_offset) || camPitch != origPitch) {
             UpdateMatricies();
             requestAutoUpdate = m_autoUpdateCamera;
         }
@@ -579,6 +582,7 @@ namespace ScreenShot {
         vec2 brCam = (uvBR / 2. + vec2(.5, .5)) * screen;
 
         vec2 pos, size;
+        // note, size.x is negative but doesn't matter here
         size = brCam - tlCam;
         vec2 camCenter = tlCam + size / 2.;
         vec2 shotSize = vec2(size.y * AspectRatio, size.y);
@@ -594,8 +598,44 @@ namespace ScreenShot {
         nvg::ClosePath();
     }
 
+    void ShowTestPointsCube() {
+        vec3[] testPoints;
+        for (uint i = 0; i < 8; i++) {
+            testPoints.InsertLast(vec3(
+                i & 1 == 0 ? mapMin.x : mapMax.x,
+                i & 2 == 0 ? mapMin.y : mapMax.y,
+                i & 4 == 0 ? mapMin.z : mapMax.z
+            ));
+            DrawTestPointMarker(testPoints[i]);
+            // break;
+        }
+    }
 
+    void DrawTestPointMarker(vec3 p) {
+        auto uvz = Camera::ToScreen(p);
 
+        auto cam = Camera::GetCurrent();
+        vec2 screen = vec2(Draw::GetWidth(), Draw::GetHeight());
+        vec2 uvTL = vec2(-cam.DrawRectMax.x, -cam.DrawRectMax.y);
+        vec2 uvBR = vec2(-cam.DrawRectMin.x, -cam.DrawRectMin.y);
+        vec2 tlCam = (uvTL / 2. + vec2(.5, .5)) * screen;
+        vec2 brCam = (uvBR / 2. + vec2(.5, .5)) * screen;
+
+        vec2 totalPx = (brCam - tlCam);
+        totalPx.x = Math::Abs(totalPx.x);
+        mat3 toCamSmall = mat3::Translate(tlCam) * mat3::Scale(totalPx / screen);
+        vec2 pos = (toCamSmall * uvz.xy).xy;
+        // print(tlCam.ToString());
+        // print(brCam.ToString());
+        // print(pos.ToString());
+
+        nvg::BeginPath();
+        nvg::Circle(pos, 5.);
+        nvg::StrokeColor(vec4(.9, .5, 0, .9));
+        nvg::StrokeWidth(2.);
+        nvg::Stroke();
+        nvg::ClosePath();
+    }
 
 
 
@@ -918,10 +958,12 @@ namespace ScreenShot {
         j['author'] = mapAuthor;
         j['aspect'] = int(S_Wiz_Aspect);
         j['rotation'] = m_Rotation;
+        j['camPitch'] = camPitch;
         j['padding.x'] = m_padding.x;
         j['padding.y'] = m_padding.y;
         j['offset.x'] = m_offset.x;
         j['offset.y'] = m_offset.y;
+        j['offset.z'] = m_offset.z;
         j['min.x'] = mapMin.x;
         j['min.y'] = mapMin.y;
         j['max.x'] = mapMax.x;
@@ -971,4 +1013,8 @@ bit useless tho b/c we can just use the shoot params obj.
 
 bool Vec2Eq(vec2 a, vec2 b) {
     return a.x == b.x && a.y == b.y;
+}
+
+bool Vec3Eq(vec3 a, vec3 b) {
+    return a.x == b.x && a.y == b.y && a.z == b.z;
 }

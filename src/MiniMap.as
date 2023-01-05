@@ -225,7 +225,7 @@ namespace MiniMap {
         if (mmIsScreenShot) {
             // auto cameraPos = vec3(.x - m_offset.x, CameraHeight, minimapMidPoint.z - m_offset.y);
             vec2 ret = (mws.ProjectPoint(world) + vec2(1., 1.)) / 2.;
-            ret.x = (1. - ret.x) * mws.aspectRatio;
+            ret.x = ret.x * mws.aspectRatio;
             // trace('world: ' + world.ToString() + " -> " + ret.ToString());
             return ret;
             // world = (mws.trans * (mat4::Inverse(mws.trans * mws.rot) * world)).xyz * vec3(1, 1, 1);
