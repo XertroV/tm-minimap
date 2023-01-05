@@ -63,17 +63,18 @@ enum MiniMapShapes {
     Square,
     Arrow,
     TriArrow,
-    QuadArrow
+    QuadArrow,
+    Ring
 }
 
 [Setting category="Appearance" name="CP Shape"]
-MiniMapShapes S_CP_Shape = MiniMapShapes::Circle;
+MiniMapShapes S_CP_Shape = MiniMapShapes::Ring;
 
 [Setting category="Appearance" name="Player Shape"]
-MiniMapShapes S_Player_Shape = MiniMapShapes::Arrow;
+MiniMapShapes S_Player_Shape = MiniMapShapes::QuadArrow;
 
 [Setting category="Appearance" name="Camera Shape"]
-MiniMapShapes S_Camera_Shape = MiniMapShapes::Arrow;
+MiniMapShapes S_Camera_Shape = MiniMapShapes::QuadArrow;
 
 /* advanced */
 

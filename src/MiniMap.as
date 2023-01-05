@@ -421,10 +421,14 @@ namespace MiniMap {
         return vec4(xy.x, xy.y, _wh.x, _wh.y);
     }
 
-    void nvgIndicatorStrokeFill(vec4 col) {
+    void nvgIndicatorStrokeFill(vec4 col, bool doFill = true) {
         nvg::FillColor(col);
-        nvg::Fill();
-        nvg::StrokeWidth(.4);
+        if (doFill) {
+            nvg::Fill();
+            nvg::StrokeWidth(.4);
+        } else {
+            nvg::StrokeWidth(Draw::GetHeight() / 200. * (bigMiniMap ? 1. : float(S_MiniMapSize) / float(S_BigMiniMapSize)));
+        }
         nvg::StrokeColor(col);
         nvg::Stroke();
     }
@@ -441,9 +445,10 @@ namespace MiniMap {
     }
 
     void DrawMarkerAt(vec2 pos, vec3 dir, vec3 up, vec4 col, MiniMapShapes shape, float size) {
-        // if there is no xz component to the direction vector, make the shape a circle.
+        // if there is no xz component to the direction vector.
         if (dir.x == dir.z && dir.z == 0) {
-            shape = MiniMapShapes::Circle;
+            // shape = MiniMapShapes::Circle;
+            dir = vec3(1, 0, 0);
         }
         float rotateAroundDir = Math::Angle(up, vec3(0, 1, 0));
         if (mmIsScreenShot) {
@@ -458,6 +463,7 @@ namespace MiniMap {
         auto dir2 = vec2(dir.x, dir.z);
         switch (shape) {
             case MiniMapShapes::Circle:
+            case MiniMapShapes::Ring:
                 nvg::Circle(rect.xyz.xy, size / 2);
             break;
             case MiniMapShapes::Arrow:
@@ -474,7 +480,8 @@ namespace MiniMap {
                 nvg::Rect(rect.x, rect.y, size, size);
             break;
         }
-        nvgIndicatorStrokeFill(col);
+        bool noFill = shape == MiniMapShapes::Ring || false;
+        nvgIndicatorStrokeFill(col, !noFill);
         nvg::ClosePath();
     }
 
