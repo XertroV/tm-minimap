@@ -20,7 +20,7 @@ void MainLoop() {
 
 // replaces condition: Editor is null
 bool get_IsEditorConditionCheckOkay() {
-    return S_AllowInEditor || GetApp().Editor is null;
+    return S_AllowInEditor || GetApp().Editor is null || ScreenShot::currStage != ScreenShot::WizStage::Uninitialized;
 }
 
 void Update(float dt) {

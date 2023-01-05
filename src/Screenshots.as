@@ -6,7 +6,7 @@ class MapWithScreenshot {
     Json::Value@ j;
     ScreenShot::Aspect aspect;
     float aspectRatio, fov;
-    mat4 rot, imgRot, camRot, trans, untrans, unrot, perspective, projection;
+    mat4 rot, imgRot, camRot, camDiffRot, trans, untrans, unrot, perspective, projection;
 
     MapWithScreenshot(const string &in imgPath, const string &in jsonPath) {
         this.imgPath = imgPath;
@@ -30,7 +30,8 @@ class MapWithScreenshot {
         aspect = ScreenShot::Aspect(int(j['aspect']));
         aspectRatio = ScreenShot::AspectToRatio(aspect);
         imgRot = mat4::Rotate(Math::ToRad(rotation), vec3(0, 1, 0));
-        camRot = mat4::Rotate(Math::ToRad(camPitch), vec3(-1, 0, 0));
+        camRot = mat4::Rotate(Math::ToRad(-camPitch), vec3(1, 0, 0));
+        camDiffRot = mat4::Rotate(-Math::ToRad(camPitch + 90), vec3(1, 0, 0));
         rot = imgRot * camRot;
         trans = mat4::Translate(camPos);
         untrans = mat4::Inverse(trans);
