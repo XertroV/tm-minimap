@@ -1,6 +1,9 @@
 [Setting category="MiniMap" name="Enable Minimap" description="When unchecked, the minimap can only be enabled via the 'Scripts' menu."]
 bool S_MiniMapEnabled = true;
 
+[Setting category="MiniMap" name="Show Player Names" description="Draws player, similar to having opponents+names on during a race."]
+bool S_DrawPlayerNames = true;
+
 [Setting category="MiniMap" name="Map Size (px)" description="Size of the minimap" min="100" max="1000"]
 uint S_MiniMapSize = 0;
 
@@ -121,23 +124,34 @@ void Render_S_BackgroundImages() {
     if (UI::Button("Refresh##maps-with-screenshots")) {
         startnew(RefreshMapsWithScreenshots);
     }
+    UI::SameLine();
+    UI::Text("\\$888      Click a UID to copy it.");
     // todo: list maps
     if (UI::BeginTable("mws list", 3, UI::TableFlags::SizingStretchProp)) {
         UI::TableSetupColumn("Name");
         UI::TableSetupColumn("Author");
         UI::TableSetupColumn("UID");
         UI::TableHeadersRow();
-        for (uint i = 0; i < mapsWithScreenshots.Length; i++) {
-            auto mws = mapsWithScreenshots[i];
-            UI::TableNextRow();
-            UI::TableNextColumn();
-            UI::Text(ColoredString(mws.mapName));
-            UI::TableNextColumn();
-            UI::Text(ColoredString(mws.mapAuthor));
-            UI::TableNextColumn();
-            UI::Text(ColoredString(mws.mapUid));
-
+        UI::ListClipper clipper(mapsWithScreenshots.Length);
+        while (clipper.Step()) {
+            for (uint i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+                auto mws = mapsWithScreenshots[i];
+                UI::TableNextRow();
+                UI::TableNextColumn();
+                UI::Text(ColoredString(mws.mapName));
+                UI::TableNextColumn();
+                UI::Text(ColoredString(mws.mapAuthor));
+                UI::TableNextColumn();
+                UI::Text(ColoredString(mws.mapUid));
+                if (UI::IsItemClicked()) SetClipboardAndNotify(mws.mapUid);
+            }
         }
         UI::EndTable();
     }
+}
+
+
+void SetClipboardAndNotify(const string &in msg) {
+    IO::SetClipboard(msg);
+    UI::ShowNotification(Meta::ExecutingPlugin().Name, "Copied: " + msg);
 }

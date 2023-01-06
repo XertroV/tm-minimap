@@ -99,7 +99,7 @@ namespace ScreenShot {
             if (currStage != WizStage::InMediaTracker) continue;
             if (!m_autoUpdateCamera) continue;
             if (cast<CGameEditorMediaTracker>(GetApp().Editor) is null) continue;
-            if (lastAutoUpdateCam + 250 > Time::Now) continue;
+            if (lastAutoUpdateCam + 100 > Time::Now) continue;
             if (!requestAutoUpdate) continue;
             lastAutoUpdateCam = Time::Now;
             requestAutoUpdate = false;
@@ -127,12 +127,14 @@ namespace ScreenShot {
         }
     }
 
+    vec3 minimapMidPoint;
+
     void UpdateMatricies() {
         auto custRotation = mat4::Rotate(Math::ToRad(m_Rotation), vec3(0, 1, 0));
         // rotate around z axis to point down, then apply custom rotation
         rotation = custRotation * mat4::Rotate(Math::ToRad(-camPitch), vec3(1, 0, 0));
         auto rotDifference = mat4::Rotate(-Math::ToRad(camPitch + 90), vec3(1, 0, 0));
-        vec3 minimapMidPoint = (mapMax + mapMin) / 2.;
+        minimapMidPoint = (mapMax + mapMin) / 2.;
         // if camPitch is not -90, we want to update our position so it's looking at the map midpoint
         vec3 camBase = (custRotation * rotDifference * vec3(0, CameraHeight, 0)).xyz;
         cameraPos = camBase + minimapMidPoint - m_offset;
@@ -333,13 +335,14 @@ namespace ScreenShot {
         UI::TextWrapped("\\$fd1" + Icons::ExclamationCircle + "\\$z  You *need* a custom camera exactly called 'Custom camera' with the Target and Anchor set to 'None'. After that, set your parameters and use the autopopulate button.");
         UI::TextWrapped("\\$fd1" + Icons::ExclamationCircle + "\\$z  Always use keyframes at 00:00.000 -- the start of the timeline.");
         UI::Separator();
-        if (UI::Button("Automatically set up")) {
+        if (UI::Button("Automatically set up Tracks")) {
             startnew(OnClickAutomaticTrackSetup);
         }
         UI::Text("\\$69f" + Icons::InfoCircle +  "\\$z  Note: you might want to play with (or remove) the color FX track.");
         UI::Separator();
         UI::AlignTextToFramePadding();
         UI::TextWrapped("Screenshot Parameters:");
+        DrawResetSSParams();
         DrawAspectRatioChooser();
         DrawCameraFovChooser();
         UI::Separator();
@@ -490,6 +493,17 @@ namespace ScreenShot {
     [Setting hidden]
     float m_Rotation = 0;
 
+    void DrawResetSSParams() {
+        if (UI::Button("Reset Offset, Rotation, Pitch, Padding")) {
+            m_offset = vec3();
+            m_Rotation = 0;
+            camPitch = -90;
+            m_padding = vec2(5, 5);
+            UpdateMatricies();
+            requestAutoUpdate = m_autoUpdateCamera;
+        }
+    }
+
     void DrawAspectRatioChooser() {
         auto origHR = shotRes.x;
         auto origRot = m_Rotation;
@@ -587,13 +601,18 @@ namespace ScreenShot {
         vec2 camCenter = tlCam + size / 2.;
         vec2 shotSize = vec2(size.y * AspectRatio, size.y);
         pos = camCenter - shotSize / 2.;
+        vec2 posBr = camCenter + shotSize / 2.;
         size = shotSize;
         // draw a rectangle over the MT camera view to aid map positioning.
         nvg::Reset();
         nvg::BeginPath();
         nvg::Rect(pos, size);
-        nvg::StrokeColor(vec4(.9, .5, 0, .9));
-        nvg::StrokeWidth(Draw::GetHeight() / 150.);
+        nvg::MoveTo(vec2(pos.x, camCenter.y));
+        nvg::LineTo(vec2(posBr.x, camCenter.y));
+        nvg::MoveTo(vec2(camCenter.x, pos.y));
+        nvg::LineTo(vec2(camCenter.x, posBr.y));
+        nvg::StrokeColor(vec4(.9, .2, 0, .9));
+        nvg::StrokeWidth(Draw::GetHeight() / 200.);
         nvg::Stroke();
         nvg::ClosePath();
     }
@@ -609,9 +628,10 @@ namespace ScreenShot {
             DrawTestPointMarker(testPoints[i]);
             // break;
         }
+        DrawTestPointMarker(minimapMidPoint, vec4(.9, .1, 0, .9));
     }
 
-    void DrawTestPointMarker(vec3 p) {
+    void DrawTestPointMarker(vec3 p, vec4 col = vec4(.9, .5, 0, .9)) {
         auto uvz = Camera::ToScreen(p);
 
         auto cam = Camera::GetCurrent();
@@ -631,7 +651,7 @@ namespace ScreenShot {
 
         nvg::BeginPath();
         nvg::Circle(pos, 5.);
-        nvg::StrokeColor(vec4(.9, .5, 0, .9));
+        nvg::StrokeColor(col);
         nvg::StrokeWidth(2.);
         nvg::Stroke();
         nvg::ClosePath();
@@ -669,6 +689,8 @@ namespace ScreenShot {
     }
 
     void OnEnterValidationCoro() {
+        // ensure nothing gets cached
+        MiniMap::mmStateInitialized = false;
         auto app = cast<CGameManiaPlanet>(GetApp());
         auto editor = cast<CGameCtnEditorFree>(app.Editor);
         editor.ButtonValidateOnClick();
@@ -723,7 +745,6 @@ namespace ScreenShot {
     }
 
     void OnClickAutomaticTrackSetup() {
-        // todo!
         auto editor = cast<CGameEditorMediaTracker>(GetApp().Editor);
         if (editor is null) return;
         auto api = cast<CGameEditorMediaTrackerPluginAPI>(editor.PluginAPI);

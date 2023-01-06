@@ -148,6 +148,8 @@ namespace MiniMap {
         PrepMinMapVars();
         // don't display when the menu is open
         if (GetApp().Network.PlaygroundClientScriptAPI.IsInGameMenuDisplayed) return;
+        if (bigMiniMap)
+            DrawBigMmBgColor();
         if (mmIsScreenShot) {
             DrawMiniMapBackgroundImage();
         } else {
@@ -161,6 +163,9 @@ namespace MiniMap {
         DrawMiniMapCheckpointLinks();
         DrawMiniMapPlayers();
         DrawMiniMapCamera();
+        if (S_DrawPlayerNames) {
+            DrawPlayerNames();
+        }
     }
 
     // void ConvertBlockPositions() {
@@ -282,6 +287,15 @@ namespace MiniMap {
         nvg::ClosePath();
     }
 
+    void DrawBigMmBgColor() {
+        nvg::Reset();
+        nvg::BeginPath();
+        nvg::Rect(vec2(), vec2(Draw::GetWidth(), Draw::GetHeight()));
+        nvg::FillColor(S_BigBg_Color);
+        nvg::Fill();
+        nvg::ClosePath();
+    }
+
     void DrawMiniMapBackgroundImage() {
         if (mmBgTexture is null) return;
         // float oldW = wh.x;
@@ -370,6 +384,22 @@ namespace MiniMap {
         auto nextLoc = cam.NextLocation;
         vec3 dir = vec3(nextLoc.xz, nextLoc.yz, nextLoc.zz);
         DrawMarkerAt(WorldToGridPosF(Camera::GetCurrentPosition()), dir, S_Camera_Color, S_Camera_Shape, S_Camera_Size);
+    }
+
+    void DrawPlayerNames() {
+        auto cp = GetApp().CurrentPlayground;
+        auto scene = GetApp().GameScene;
+        // CSmPlayer@ players;
+        for (uint i = 0; i < cp.Players.Length; i++) {
+            auto player = cast<CSmPlayer>(cp.Players[i]);
+            if (player is null) continue;
+            DrawPlayerName(scene, player);
+        }
+    }
+
+    void DrawPlayerName(ISceneVis@ scene, CSmPlayer@ player) {
+        auto playerVis = VehicleState::GetVis(scene, player);
+
     }
 
     /* drawing helpers */

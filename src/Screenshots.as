@@ -8,11 +8,13 @@ class MapWithScreenshot {
     float aspectRatio, fov;
     mat4 rot, imgRot, camRot, camDiffRot, trans, untrans, unrot, perspective, projection;
 
-    MapWithScreenshot(const string &in imgPath, const string &in jsonPath) {
+    MapWithScreenshot(const string &in uid, const string &in imgPath, const string &in jsonPath) {
         this.imgPath = imgPath;
         this.jsonPath = jsonPath;
         @j = Json::FromFile(jsonPath);
-        mapUid = j['uid'];
+        // mapUid = j['uid'];
+        // don't set the UID from the JSON so that we can easily rename files
+        mapUid = uid;
         mapName = j['name'];
         mapAuthor = j.Get('author', "Unknown");
         padding = vec2(j['padding.x'], j['padding.y']);
@@ -93,15 +95,25 @@ void RefreshMapsWithScreenshots() {
         MapWithScreenshot@ mws = null;
         try {
             // prefer png because transparency. ppl can edit the .jpg after it's generated.
-            @mws = MapWithScreenshot(basePath + (hasPng ? ".png" : ".jpg"), basePath + ".json");
+            @mws = MapWithScreenshot(uid, basePath + (hasPng ? ".png" : ".jpg"), basePath + ".json");
         } catch {
             warn("Exception loading map with screenshot (uid:" + uid + "): " + getExceptionInfo());
         }
         if (mws is null) continue;
-        mapsWithScreenshots.InsertLast(mws);
+        InsertMwsSorted(mws);
         @mapWithScreenshotsLookup[uid] = mws;
     }
     trace('Found ' + mapsWithScreenshots.Length + ' maps with screenshots and config.');
+}
+
+void InsertMwsSorted(MapWithScreenshot@ mws) {
+    for (uint i = 0; i < mapsWithScreenshots.Length; i++) {
+        auto item = mapsWithScreenshots[i];
+        if (item.mapName < mws.mapName) continue;
+        mapsWithScreenshots.InsertAt(i, mws);
+        return;
+    }
+    mapsWithScreenshots.InsertLast(mws);
 }
 
 MapWithScreenshot@ GetMapScreenshotOrNull(const string &in uid) {
