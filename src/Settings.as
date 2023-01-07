@@ -53,7 +53,13 @@ bool S_UpdateWhenHidden = true;
 vec4 S_BigBg_Color = vec4(0.0f, 0.0f, 0.0f, .2f);
 
 [Setting category="Appearance" name="CP Color" color]
-vec4 S_CP_Color = vec4(0.055f, 0.780f, 0.118f, 1.000f);
+vec4 S_CP_Color = vec4(0.053f, 0.277f, 0.761f, 0.902f);
+
+[Setting category="Appearance" name="Spawn Color" color]
+vec4 S_Spawn_Color = vec4(0.055f, 0.780f, 0.118f, 1.000f);
+
+[Setting category="Appearance" name="Goal Color" color]
+vec4 S_Goal_Color = vec4(0.976f, 0.067f, 0.067f, 0.969f);
 
 [Setting category="Appearance" name="Player Color" color]
 vec4 S_Player_Color = vec4(0.875f, 0.058f, 0.711f, 0.843f);

@@ -1,17 +1,40 @@
-vec3[]@ GetCheckpointPositions() {
+enum CpType {
+    Spawn, Goal, Checkpoint
+}
+
+CpType TagToType(const string &in tag) {
+    if (tag == "Spawn") return CpType::Spawn;
+    if (tag == "Goal") return CpType::Goal;
+    return CpType::Checkpoint;
+}
+
+class CpPositionData {
+    vec3[] positions;
+    CpType[] types;
+    uint get_Length() {
+        return positions.Length;
+    }
+    vec3 opIndex(uint i) {
+        return positions[i];
+    }
+}
+
+CpPositionData@ GetCheckpointPositions() {
     auto cp = cast<CSmArenaClient>(GetApp().CurrentPlayground);
     while (cp is null) {
         yield();
         @cp = cast<CSmArenaClient>(GetApp().CurrentPlayground);
     }
     MwFastBuffer<CGameScriptMapLandmark@> landmarks = cp.Arena.MapLandmarks;
-    auto positions = array<vec3>();
+    // auto positions = array<vec3>();
+    auto ret = CpPositionData();
     for (uint i = 0; i < landmarks.Length; i++) {
         auto landmark = cast<CSmScriptMapLandmark>(landmarks[i]);
         if (landmark is null) continue;
-        positions.InsertLast(landmark.Position);
+        ret.positions.InsertLast(landmark.Position);
+        ret.types.InsertLast(TagToType(landmark.Tag));
     }
-    return positions;
+    return ret;
 }
 
 vec3[][]@ GetLinkedCheckpointPositions() {

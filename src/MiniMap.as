@@ -1,5 +1,5 @@
 namespace MiniMap {
-    array<vec3> cpPositions;
+    CpPositionData@ cpPositions = CpPositionData();
     array<array<vec3>> linkedCpPositions;
     vec3 min, max, rawMin, rawMax; // map boundaries
     float maxXZLen;
@@ -21,7 +21,7 @@ namespace MiniMap {
         @mws = null;
         @mmBgTexture = null;
         debugLogCount = 0;
-        cpPositions.RemoveRange(0, cpPositions.Length);
+        @cpPositions = CpPositionData();
         if (minimapPlayerObservations.Length != S_MiniMapGridParts) InitGrid();
         for (uint y = 0; y < minimapPlayerObservations.Length; y++) {
             auto xs = minimapPlayerObservations[y];
@@ -50,8 +50,9 @@ namespace MiniMap {
         ClearMiniMapState();
         while (cpPositions.Length == 0) {
             // get positions of CPs (waits for them to load)
-            cpPositions = GetCheckpointPositions();
-            if (cpPositions.Length > 0) break;
+            @cpPositions = GetCheckpointPositions();
+            // cpPositions = cpPosData.
+            if (cpPositions.positions.Length > 0) break;
             yield();
         }
         trace("Found " + cpPositions.Length + " unique CPs to draw.");
@@ -323,15 +324,17 @@ namespace MiniMap {
             zoomFactor = 1. / span;
             // print(''+zoomFactor);
             zoomAround = minPlayerGridPos / aspectVec + playersBoxSize / 2.;
+            if (span > 1) zoomAround = vec2(.5, .5);
 
             // print('zoomAround: ' + zoomAround.ToString() + ", box size: " + playersBoxSize.ToString() + ", span: " + span);
         }
         pxZoomAround = tl + wh * zoomAround;
+        float lerpAmt = 0.08;
         if (lastZoomAround.LengthSquared() > 0)
-            pxZoomAround = Math::Lerp(lastZoomAround, pxZoomAround, .05);
+            pxZoomAround = Math::Lerp(lastZoomAround, pxZoomAround, lerpAmt);
 
         zoomFactor = Math::Clamp(zoomFactor, 1., 8.);
-        zoomFactor = Math::Lerp(lastZoomF, zoomFactor, .05);
+        zoomFactor = Math::Lerp(lastZoomF, zoomFactor, lerpAmt);
         zoomScale = mat3::Scale(zoomFactor);
         sizeZoom = bigMiniMap ? 1. : (zoomFactor ** 0.4);
 
@@ -341,8 +344,10 @@ namespace MiniMap {
         pxToZoomedPx = mat3::Translate((tl + wh / 2.) - pxZoomAround) * pxToZoomedPx;
 
         vec2 padding = vec2(S_FocusModePadding / 100., S_FocusModePadding / 100.);
-        vec2 minPlayerPx = (pxToZoomedPx * ((minPlayerGridPos / aspectVec - padding) * wh + tl)).xy;
-        vec2 maxPlayerPx = (pxToZoomedPx * ((maxPlayerGridPos / aspectVec + padding) * wh + tl)).xy;
+        auto minPlayerVirtPos = MaxVec2(vec2(0, 0), (minPlayerGridPos / aspectVec - padding));
+        auto maxPlayerVirtPos = MinVec2(vec2(1, 1), (maxPlayerGridPos / aspectVec + padding));
+        vec2 minPlayerPx = (pxToZoomedPx * (minPlayerVirtPos * wh + tl)).xy;
+        vec2 maxPlayerPx = (pxToZoomedPx * (maxPlayerVirtPos * wh + tl)).xy;
         vec2 correctionMinRef = vec2(Math::Min(minPlayerPx.x, tl.x), Math::Min(minPlayerPx.y, tl.y));
         vec2 correctionMaxRef = vec2(Math::Min(maxPlayerPx.x, tl.x), Math::Min(maxPlayerPx.y, tl.y));
         vec2 cmrTrans = tl - correctionMinRef;
@@ -351,6 +356,10 @@ namespace MiniMap {
         cmrTrans = correctionMaxRef - tl - wh;
         vec2 correctionMax = vec2(Math::Max(0, cmrTrans.x), Math::Max(0, cmrTrans.y)) * -1;
         pxToZoomedPx = mat3::Translate(correctionMax) * pxToZoomedPx;
+
+        if (!S_FocusModeSmall) {
+            pxToZoomedPx = mat3::Identity();
+        }
 
         // transCorrection = mat3::Translate();
         // print('tl: ' + tl.ToString() + ', pxZoomAround: ' + pxZoomAround.ToString());
@@ -489,7 +498,17 @@ namespace MiniMap {
 
     void DrawMiniMapCheckpoints() {
         for (uint i = 0; i < cpPositions.Length; i++) {
-            DrawMarkerAt(WorldToGridPosF(cpPositions[i]), vec3(0, 1, 0), S_CP_Color, S_CP_Shape, S_CP_Size);
+            DrawMarkerAt(WorldToGridPosF(cpPositions[i]), vec3(0, 1, 0), GetCpColor(cpPositions.types[i]), S_CP_Shape, S_CP_Size);
+        }
+    }
+
+    vec4 GetCpColor(CpType type) {
+        switch (type) {
+            case CpType::Goal: return S_Goal_Color;
+            case CpType::Spawn: return S_Spawn_Color;
+            case CpType::Checkpoint:
+            default:
+                return S_CP_Color;
         }
     }
 
@@ -852,4 +871,14 @@ namespace MiniMap {
         nvg::LineTo(bl2);
         nvg::LineTo(tip2);
     }
+}
+
+
+
+vec2 MaxVec2(vec2 a, vec2 b) {
+    return vec2(Math::Max(a.x, b.x), Math::Max(a.y, b.y));
+}
+
+vec2 MinVec2(vec2 a, vec2 b) {
+    return vec2(Math::Min(a.x, b.x), Math::Min(a.y, b.y));
 }
