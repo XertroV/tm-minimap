@@ -330,8 +330,13 @@ namespace MiniMap {
         }
         pxZoomAround = tl + wh * zoomAround;
         float lerpAmt = 0.08;
-        if (lastZoomAround.LengthSquared() > 0)
-            pxZoomAround = Math::Lerp(lastZoomAround, pxZoomAround, lerpAmt);
+        if (lastZoomAround.LengthSquared() > 0) {
+            auto ls = (pxZoomAround - lastZoomAround).LengthSquared();
+            if (ls < 0.001)
+                lerpAmt = 0.5;
+            if ((pxZoomAround - lastZoomAround).LengthSquared() > 0.0004)
+                pxZoomAround = Math::Lerp(lastZoomAround, pxZoomAround, lerpAmt);
+        }
 
         zoomFactor = Math::Clamp(zoomFactor, 1., 8.);
         zoomFactor = Math::Lerp(lastZoomF, zoomFactor, lerpAmt);
@@ -719,7 +724,7 @@ namespace MiniMap {
             auto uv = pos / vec2(mws.aspectRatio, 1.);
             pxPos = (pxToZoomedPx * pxPos).xy;
             auto lims = tl + wh;
-            if (pxPos.x < tl.x || pxPos.y < tl.y || pxPos.x > lims.x || pxPos.y > lims.y)
+            if (pxPos.x < tl.x - size || pxPos.y < tl.y - size || pxPos.x > lims.x + size || pxPos.y > lims.y + size)
                 return;
         }
 
