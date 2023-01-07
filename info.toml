@@ -2,7 +2,7 @@
 name     = "MiniMap"
 author   = "XertroV"
 category = "Race"
-version  = "0.1.11"
+version  = "0.1.12"
 
 [script]
 #__DEFINES__
