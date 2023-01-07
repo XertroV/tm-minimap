@@ -5,7 +5,7 @@ bool S_MiniMapEnabled = true;
 bool S_DrawPlayerNames = true;
 
 [Setting category="MiniMap" name="Player Name Font Size" min="4" max="32" description="This will be larger than you expect."]
-float S_PlayerName_FontSize = 8.;
+float S_PlayerName_FontSize = 12.;
 
 [Setting category="MiniMap" name="Show Player Names on Small Minimap"]
 bool S_DrawPlayerNamesInSmall = false;
@@ -108,6 +108,8 @@ bool S_DisableSmallMinimap = false;
 [Setting category="Advanced" name="Disable BG Images (Grid view only)" description="Disable background images even if they're found -- useful for testing."]
 bool S_DisableBackgroundImages = false;
 
+[Setting category="Advanced" name="[Focus mode] Show debug shapes"]
+bool S_ShowDebugShapesFocusMode = false;
 
 
 [Setting category="Bg Image Settings" name="BG Alpha" min="0.0" max="1.0"]
