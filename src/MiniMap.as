@@ -12,6 +12,8 @@ namespace MiniMap {
     MapWithScreenshot@ mws;
     nvg::Texture@ mmBgTexture;
 
+    auto playerNameFont = nvg::LoadFont("", false, true);
+
     void ClearMiniMapState() {
         mmStateInitialized = false;
         mmIsScreenShot = false;
@@ -163,9 +165,6 @@ namespace MiniMap {
         DrawMiniMapCheckpointLinks();
         DrawMiniMapPlayers();
         DrawMiniMapCamera();
-        if (S_DrawPlayerNames) {
-            DrawPlayerNames();
-        }
     }
 
     // void ConvertBlockPositions() {
@@ -370,12 +369,47 @@ namespace MiniMap {
         nvg::ClosePath();
     }
 
+    // Get entity ID of the given vehicle vis. (From VehicleNext.as in VehicleState)
+	uint GetEntityId(CSceneVehicleVis@ vis)
+	{
+		return Dev::GetOffsetUint32(vis, 0);
+	}
+
     void DrawMiniMapPlayers() {
         if (GetApp().GameScene is null) return;
-        auto viss = VehicleState::GetAllVis(GetApp().GameScene);
+        auto cp = cast<CSmArenaClient>(GetApp().CurrentPlayground);
+        auto scene = GetApp().GameScene;
+        if (cp is null) return;
+
+        auto viss = VehicleState::GetAllVis(scene);
         for (uint i = 0; i < viss.Length; i++) {
+            // only draw ghosts here
+            if ((GetEntityId(viss[i]) & 0xFF000000) != 0x04000000) continue;
             DrawMarkerAt(WorldToGridPosF(viss[i].AsyncState.Position), viss[i].AsyncState.Dir, viss[i].AsyncState.Up, S_Player_Color, S_Player_Shape, S_Player_Size);
         }
+
+        // draw players after, with names
+        for (uint i = 0; i < cp.Players.Length; i++) {
+            auto player = cast<CSmPlayer>(cp.Players[i]);
+            auto vis = VehicleState::GetVis(scene, player);
+            if (vis is null) continue;
+            auto team = player.EdClan;
+            auto col = GetPlayerColForTeam(team);
+            DrawMarkerAt(WorldToGridPosF(vis.AsyncState.Position), vis.AsyncState.Dir, vis.AsyncState.Up, col, S_Player_Shape, S_Player_Size);
+            if (S_DrawPlayerNames) DrawPlayerName(vis, player);
+        }
+    }
+
+    vec4 GetPlayerColForTeam(uint team) {
+        if (team == 1) return S_BlueTeamColor;
+        if (team == 2) return S_RedTeamColor;
+        return S_Player_Color;
+    }
+
+    vec4 GetPlayerNameBgColForTeam(uint team) {
+        if (team == 1) return S_BlueTeamColor * vec4(1, 1, 1, .5);
+        if (team == 2) return S_RedTeamColor * vec4(1, 1, 1, .5);
+        return vec4(0, 0, 0, .6);
     }
 
     void DrawMiniMapCamera() {
@@ -386,20 +420,28 @@ namespace MiniMap {
         DrawMarkerAt(WorldToGridPosF(Camera::GetCurrentPosition()), dir, S_Camera_Color, S_Camera_Shape, S_Camera_Size);
     }
 
-    void DrawPlayerNames() {
-        auto cp = GetApp().CurrentPlayground;
-        auto scene = GetApp().GameScene;
-        // CSmPlayer@ players;
-        for (uint i = 0; i < cp.Players.Length; i++) {
-            auto player = cast<CSmPlayer>(cp.Players[i]);
-            if (player is null) continue;
-            DrawPlayerName(scene, player);
-        }
-    }
-
-    void DrawPlayerName(ISceneVis@ scene, CSmPlayer@ player) {
-        auto playerVis = VehicleState::GetVis(scene, player);
-
+    void DrawPlayerName(CSceneVehicleVis@ vis, CSmPlayer@ player) {
+        if (vis is null) return;
+        // auto pos = vis.AsyncState.Position;
+        string name = player.User.Name;
+        auto team = player.EdClan;
+        auto bgCol = GetPlayerNameBgColForTeam(team);
+        float fs = S_PlayerName_FontSize * float(Draw::GetHeight()) / 1080.;
+        nvg::FontSize(fs);
+        nvg::FontFace(playerNameFont);
+        nvg::TextAlign(nvg::Align::Center | nvg::Align::Middle);
+        auto bounds = nvg::TextBounds(name);
+        auto playerPos = GetMMPosRect(WorldToGridPosF(vis.AsyncState.Position)).xyz.xy;
+        auto nameMid = playerPos + vec2(0, -2. * fs);
+        auto boxBounds = bounds * 1.1;
+        auto boxTL = nameMid - (boxBounds / 2.);
+        nvg::BeginPath();
+        nvg::Rect(boxTL, boxBounds);
+        nvg::FillColor(bgCol);
+        nvg::Fill();
+        nvg::ClosePath();
+        nvg::FillColor(vec4(1, 1, 1, 1));
+        nvg::Text(nameMid, name);
     }
 
     /* drawing helpers */

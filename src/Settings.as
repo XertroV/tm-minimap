@@ -4,6 +4,11 @@ bool S_MiniMapEnabled = true;
 [Setting category="MiniMap" name="Show Player Names" description="Draws player, similar to having opponents+names on during a race."]
 bool S_DrawPlayerNames = true;
 
+[Setting category="MiniMap" name="Player Name Font Size"]
+float S_PlayerName_FontSize = 16.;
+
+
+
 [Setting category="MiniMap" name="Map Size (px)" description="Size of the minimap" min="100" max="1000"]
 uint S_MiniMapSize = 0;
 
@@ -50,6 +55,12 @@ vec4 S_CP_Color = vec4(0.055f, 0.780f, 0.118f, 1.000f);
 
 [Setting category="Appearance" name="Player Color" color]
 vec4 S_Player_Color = vec4(0.875f, 0.058f, 0.711f, 0.843f);
+
+[Setting category="Appearance" name="Blue Team Color" color]
+vec4 S_BlueTeamColor = vec4(.2, .2, 1, .9);
+
+[Setting category="Appearance" name="Red Team Color" color]
+vec4 S_RedTeamColor = vec4(1, .2, .2, .9);
 
 [Setting category="Appearance" name="Camera Color" color]
 vec4 S_Camera_Color = vec4(0.931f, 0.464f, 0.061f, 1.000f);

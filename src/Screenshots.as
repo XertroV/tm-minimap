@@ -122,15 +122,14 @@ MapWithScreenshot@ GetMapScreenshotOrNull(const string &in uid) {
         return ret;
     }
     trace('no screenshot data found for ' + uid);
-    trace(tostring(mapWithScreenshotsLookup.GetSize()));
-    trace(tostring(mapWithScreenshotsLookup.Exists(uid)));
-    trace(tostring(mapWithScreenshotsLookup.GetKeys().Find(uid)));
-    auto keys = mapWithScreenshotsLookup.GetKeys();
-    for (uint i = 0; i < keys.Length; i++) {
-        auto item = keys[i];
-        print(item);
-
-    }
+    // trace(tostring(mapWithScreenshotsLookup.GetSize()));
+    // trace(tostring(mapWithScreenshotsLookup.Exists(uid)));
+    // trace(tostring(mapWithScreenshotsLookup.GetKeys().Find(uid)));
+    // auto keys = mapWithScreenshotsLookup.GetKeys();
+    // for (uint i = 0; i < keys.Length; i++) {
+    //     auto item = keys[i];
+    //     // print(item);
+    // }
     return null;
     // if (!mapWithScreenshotsLookup.Exists(uid)) return null;
     // MapWithScreenshot@ ret = cast<MapWithScreenshot>(mapWithScreenshotsLookup[uid]);
