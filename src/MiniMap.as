@@ -15,6 +15,7 @@ namespace MiniMap {
     auto playerNameFont = nvg::LoadFont("", false, true);
 
     void ClearMiniMapState() {
+        exceptionsWarned = 0;
         mmStateInitialized = false;
         mmIsScreenShot = false;
         @mws = null;
@@ -93,7 +94,7 @@ namespace MiniMap {
         min.x = mws.min.x;
         min.z = mws.min.y;
         maxXZLen = Math::Max(max.z - min.z, max.x - min.x);
-        @mmBgTexture = nvg::LoadTexture(mws.ReadImageFile());
+        @mmBgTexture = nvg::LoadTexture(mws.ReadImageFile(), 1);
         if (mmBgTexture is null) {
             warn("Failed to load texture: " + mws.imgPath);
         }
@@ -136,18 +137,25 @@ namespace MiniMap {
         mmStateInitialized = true;
     }
 
-    void UpdateMiniMap(float dt) {
+    uint exceptionsWarned = 0;
+
+    void UpdateMiniMap() {
         if (!IsEditorConditionCheckOkay) return;
         if (!mmStateInitialized) return;
         if (!S_UpdateWhenHidden && S_MiniMapState == 0) return;
-        if (!mmIsScreenShot)
+        PrepMinMapVars();
+        try {
             ObservePlayers();
+        } catch {
+            if (exceptionsWarned < 10)
+                warn("Exception updating minimap: " + getExceptionInfo());
+            exceptionsWarned++;
+        }
     }
 
     void Render() {
         if (S_MiniMapState == 0) return;
         if (!mmStateInitialized) return;
-        PrepMinMapVars();
         // don't display when the menu is open
         if (GetApp().Network.PlaygroundClientScriptAPI.IsInGameMenuDisplayed) return;
         if (bigMiniMap)
@@ -213,13 +221,128 @@ namespace MiniMap {
     float avgObvsPerSquare = 1;
     const uint tickDown = 1;
 
+    vec2[] playerScreenPositions;
+    vec2[] playerGridPositions;
+    vec3[] playerPositions;
+    vec3[] playerDirs;
+    vec3[] playerUps;
+    CSmPlayer@[] players;
+
+    uint warnedTooManyPlayersCount = 0;
+
+    void ObservePlayer(uint i, CSceneVehicleVis@ vis, CSmPlayer@ player) {
+        if (i >= players.Length) {
+            if (i == players.Length && warnedTooManyPlayersCount < 10) {
+                warn("Tried to observe too many players.");
+                warnedTooManyPlayersCount++;
+            }
+            return;
+        }
+        // bool isGhost = player is null;
+        @players[i] = player;
+        playerUps[i] = vis.AsyncState.Up;
+        playerDirs[i] = vis.AsyncState.Dir;
+        playerPositions[i] = vis.AsyncState.Position;
+        auto gridPos = WorldToGridPosF(vis.AsyncState.Position);
+        playerGridPositions[i] = gridPos;
+        playerScreenPositions[i] = GetMMPosRect(gridPos).xyz.xy;
+        ObservePlayerInWorld(gridPos);
+        UpdateMinMaxPlayerGridPos(i, gridPos);
+    }
+
+    vec2 minPlayerGridPos, maxPlayerGridPos;
+
+    void UpdateMinMaxPlayerGridPos(uint i, vec2 gridPos) {
+        if (i == 0) {
+            minPlayerGridPos = gridPos;
+            maxPlayerGridPos = gridPos;
+        } else {
+            minPlayerGridPos.x = Math::Min(gridPos.x, minPlayerGridPos.x);
+            minPlayerGridPos.y = Math::Min(gridPos.y, minPlayerGridPos.y);
+            maxPlayerGridPos.x = Math::Max(gridPos.x, maxPlayerGridPos.x);
+            maxPlayerGridPos.y = Math::Max(gridPos.y, maxPlayerGridPos.y);
+        }
+    }
+
     void ObservePlayers() {
-        if (GetApp().GameScene is null) return;
-        auto viss = VehicleState::GetAllVis(GetApp().GameScene);
+        auto scene = GetApp().GameScene;
+        auto cp = cast<CSmArenaClient>(GetApp().CurrentPlayground);
+        if (scene is null || cp is null) return;
+        auto viss = VehicleState::GetAllVis(scene);
+        if (viss.Length == 0) return;
+        playerDirs.Resize(viss.Length);
+        playerUps.Resize(viss.Length);
+        playerPositions.Resize(viss.Length);
+        playerGridPositions.Resize(viss.Length);
+        playerScreenPositions.Resize(viss.Length);
+        players.Resize(viss.Length);
+        uint ix;
+        uint skipped = 0;
+        for (ix = 0; ix < cp.Players.Length; ix++) {
+            auto player = cast<CSmPlayer>(cp.Players[ix]);
+            auto vis = VehicleState::GetVis(scene, player);
+            if (vis is null) {
+                skipped++;
+            } else {
+                ObservePlayer(ix - skipped, vis, player);
+            }
+        }
+        ix -= skipped;
         for (uint i = 0; i < viss.Length; i++) {
             auto vis = viss[i];
-            ObservePlayerInWorld(vis.AsyncState.Position);
+            if (VisIsPlayer(vis)) continue;
+            ObservePlayer(ix, vis, null);
+            ix++;
         }
+        CalcZoomFactor();
+    }
+
+    float zoomFactor = 1.;
+    // the point around which to zoom, measured in uv coords between 0 and 1. (.5, .5) is the center of the map.
+    vec2 zoomAround = vec2(.5, .5);
+    vec2 pxZoomAround;
+    mat3 zoomScale, pxToZoomedPx;
+
+    void CalcZoomFactor() {
+        vec2 aspectVec = vec2(mws.aspectRatio, 1.);
+        // for use with a bg image in small mode
+        if (!mmIsScreenShot || mws is null || playerPositions.Length == 0) {
+            zoomFactor = 1.;
+            zoomAround = vec2(.5, .5);
+        } else if (Vec2Eq(minPlayerGridPos, maxPlayerGridPos)) {
+            zoomFactor = 1. / (S_FocusModePadding / 100. * 2.);
+            zoomAround = minPlayerGridPos / aspectVec;
+        } else {
+            // scale x by mws.aspectRatio so min/max values should be between 0 and 1;
+            // print(minPlayerGridPos.ToString() + ", " + maxPlayerGridPos.ToString());
+            auto playersBoxSize = (maxPlayerGridPos - minPlayerGridPos) / aspectVec;
+            // print("players box size: " + playersBoxSize.ToString());
+            auto span = Math::Max(playersBoxSize.x, playersBoxSize.y) + (S_FocusModePadding / 100. * 2.);
+            zoomFactor = Math::Clamp(1. / span, 1., 10.);
+            // print(''+zoomFactor);
+            zoomAround = minPlayerGridPos / aspectVec + playersBoxSize / 2.;
+
+            // print('zoomAround: ' + zoomAround.ToString() + ", box size: " + playersBoxSize.ToString() + ", span: " + span);
+        }
+        zoomScale = mat3::Scale(zoomFactor);
+        pxZoomAround = tl + wh * zoomAround;
+        pxToZoomedPx = mat3::Translate(pxZoomAround * vec2(1, 1)) * zoomScale * mat3::Translate(pxZoomAround * vec2(-1, -1));
+
+        vec2 padding = vec2(S_FocusModePadding / 100., S_FocusModePadding / 100.);
+        vec2 minPlayerPx = (pxToZoomedPx * ((minPlayerGridPos / aspectVec - padding) * wh + tl)).xy;
+        vec2 maxPlayerPx = (pxToZoomedPx * ((maxPlayerGridPos / aspectVec + padding) * wh + tl)).xy;
+        vec2 correctionMinRef = vec2(Math::Min(minPlayerPx.x, tl.x), Math::Min(minPlayerPx.y, tl.y));
+        vec2 correctionMaxRef = vec2(Math::Min(maxPlayerPx.x, tl.x), Math::Min(maxPlayerPx.y, tl.y));
+        vec2 cmrTrans = tl - correctionMinRef;
+        vec2 correctionMin = vec2(Math::Max(0, cmrTrans.x), Math::Max(0, cmrTrans.y));
+        pxToZoomedPx = mat3::Translate(correctionMin) * pxToZoomedPx;
+        cmrTrans = correctionMaxRef - tl - wh;
+        vec2 correctionMax = vec2(Math::Max(0, cmrTrans.x), Math::Max(0, cmrTrans.y)) * -1;
+        pxToZoomedPx = mat3::Translate(correctionMax) * pxToZoomedPx;
+
+        // transCorrection = mat3::Translate();
+        // print('tl: ' + tl.ToString() + ', pxZoomAround: ' + pxZoomAround.ToString());
+        // pxToZoomedPx = mat3::Translate(pxZoomAround * -1.) * zoomScale * mat3::Translate(pxZoomAround);
     }
 
     int2 WorldToGridPos(vec3 world) {
@@ -238,17 +361,13 @@ namespace MiniMap {
         }
         auto gridPos = (world - min) / maxXZLen * NbGridParts;
         return vec2(gridPos.x, gridPos.z); // +- 0.5?
-
-        // calc screen shot equiv
-        // vec2 xy = vec2(world.x, world.z);
-        // vec3 newPos = (mws.rot * (world - mws.center3)).xyz;
-        // trace('world: ' + world.ToString() + " -> " + newPos.ToString());
-        // auto xy = vec2(newPos.x, newPos.z) / maxXZLen * NbGridParts;
-        // return xy;
     }
 
     void ObservePlayerInWorld(vec3 pos, float weight = 1.0) {
-        auto gridPos = WorldToGridPosF(pos);
+        ObservePlayerInWorld(WorldToGridPosF(pos), weight);
+    }
+
+    void ObservePlayerInWorld(vec2 gridPos, float weight = 1.0) {
         if (gridPos.x < 0 || gridPos.x > float(NbGridParts)) return;
         if (gridPos.y < 0 || gridPos.y > float(NbGridParts)) return;
         NotePlayerAt(gridPos, weight);
@@ -297,16 +416,32 @@ namespace MiniMap {
 
     void DrawMiniMapBackgroundImage() {
         if (mmBgTexture is null) return;
-        // float oldW = wh.x;
-        // auto imgSize = mmBgTexture.GetSize();
-        // float aspect = imgSize.x / imgSize.y;
-        // auto _wh = vec2(wh.x * aspect, wh.y);
-        // auto _tl = vec2(tl.x - (_wh.x - wh.x), tl.y);
+        vec2 texTL = tl;
+        vec2 drawWH = wh;
+        if (S_FocusModeSmall && !bigMiniMap && zoomFactor != 1.) {
+            texTL = (pxToZoomedPx * texTL).xy;
+            drawWH = (zoomScale * drawWH).xy;
+        }
         nvg::Reset();
         nvg::BeginPath();
         nvg::Rect(tl, wh);
-        nvg::FillPaint(nvg::TexturePattern(tl, wh, 0, mmBgTexture, S_BgImageAlpha));
+        nvg::FillPaint(nvg::TexturePattern(texTL, drawWH, 0, mmBgTexture, S_BgImageAlpha));
+        if (zoomFactor > 1.) {
+            vec2 sTL = (pxToZoomedPx * GetMMPosRect(vec2(0, 0)).xyz.xy).xy;
+            vec2 sWH = (pxToZoomedPx * GetMMPosRect(vec2(mws.aspectRatio, 1)).xyz.xy).xy - sTL;
+            nvg::Scissor(sTL.x, sTL.y, sWH.x, sWH.y);
+        }
         nvg::Fill();
+        nvg::ClosePath();
+        nvg::ResetScissor();
+        nvg::BeginPath();
+        nvg::Rect(texTL, drawWH);
+        nvg::Circle(pxZoomAround, 10);
+        nvg::Circle((pxToZoomedPx * (minPlayerGridPos / vec2(mws.aspectRatio, 1) * wh + tl)).xy, 10);
+        nvg::Circle((pxToZoomedPx * (maxPlayerGridPos / vec2(mws.aspectRatio, 1) * wh + tl)).xy, 10);
+        nvg::StrokeColor(vec4(1, .5, .0, 1.));
+        nvg::StrokeWidth(3.);
+        nvg::Stroke();
         nvg::ClosePath();
     }
 
@@ -375,6 +510,10 @@ namespace MiniMap {
 		return Dev::GetOffsetUint32(vis, 0);
 	}
 
+    bool VisIsPlayer(CSceneVehicleVis@ vis) {
+        return ((GetEntityId(vis) & 0xFF000000) != 0x04000000);
+    }
+
     void DrawMiniMapPlayers() {
         if (GetApp().GameScene is null) return;
         auto cp = cast<CSmArenaClient>(GetApp().CurrentPlayground);
@@ -384,7 +523,8 @@ namespace MiniMap {
         auto viss = VehicleState::GetAllVis(scene);
         for (uint i = 0; i < viss.Length; i++) {
             // only draw ghosts here
-            if ((GetEntityId(viss[i]) & 0xFF000000) != 0x04000000) continue;
+            // if ((GetEntityId(viss[i]) & 0xFF000000) != 0x04000000) continue;
+            if (VisIsPlayer(viss[i])) continue;
             DrawMarkerAt(WorldToGridPosF(viss[i].AsyncState.Position), viss[i].AsyncState.Dir, viss[i].AsyncState.Up, S_Player_Color, S_Player_Shape, S_Player_Size);
         }
 
@@ -396,7 +536,8 @@ namespace MiniMap {
             auto team = player.EdClan;
             auto col = GetPlayerColForTeam(team);
             DrawMarkerAt(WorldToGridPosF(vis.AsyncState.Position), vis.AsyncState.Dir, vis.AsyncState.Up, col, S_Player_Shape, S_Player_Size);
-            if (S_DrawPlayerNames) DrawPlayerName(vis, player);
+            if (S_DrawPlayerNames && (bigMiniMap || S_DrawPlayerNamesInSmall))
+                DrawPlayerName(vis, player);
         }
     }
 
@@ -426,15 +567,16 @@ namespace MiniMap {
         string name = player.User.Name;
         auto team = player.EdClan;
         auto bgCol = GetPlayerNameBgColForTeam(team);
-        float fs = S_PlayerName_FontSize * float(Draw::GetHeight()) / 1080.;
+        float fs = S_PlayerName_FontSize * ScaleFactor;
         nvg::FontSize(fs);
         nvg::FontFace(playerNameFont);
         nvg::TextAlign(nvg::Align::Center | nvg::Align::Middle);
         auto bounds = nvg::TextBounds(name);
         auto playerPos = GetMMPosRect(WorldToGridPosF(vis.AsyncState.Position)).xyz.xy;
-        auto nameMid = playerPos + vec2(0, -2. * fs);
+        auto nameMid = playerPos + vec2(0, -1.5 * fs);
         auto boxBounds = bounds * 1.1;
         auto boxTL = nameMid - (boxBounds / 2.);
+        boxTL.y -= fs * 0.05;
         nvg::BeginPath();
         nvg::Rect(boxTL, boxBounds);
         nvg::FillColor(bgCol);
@@ -532,26 +674,37 @@ namespace MiniMap {
         size = size * ScaleFactor;
         vec2 _off = mmIsScreenShot ? vec2() : F2Vec(.5);
         vec4 rect = GetMMPosRect(pos + _off);
+        vec2 pxPos = rect.xyz.xy;
+
+        // apply zoom
+        if (S_FocusModeSmall && !bigMiniMap && zoomFactor != 1.) {
+            // in this mode, we don't draw objects outside the MM bounds
+            auto uv = pos / vec2(mws.aspectRatio, 1.);
+            if (uv.x < -0.02 || uv.y < -0.02 || uv.x > 1.02 || uv.y > 1.02) return;
+            pxPos = (pxToZoomedPx * pxPos).xy;
+
+        }
+
         nvg::Reset();
         nvg::BeginPath();
         auto dir2 = vec2(dir.x, dir.z);
         switch (shape) {
             case MiniMapShapes::Circle:
             case MiniMapShapes::Ring:
-                nvg::Circle(rect.xyz.xy, size / 2);
+                nvg::Circle(pxPos, size / 2);
             break;
             case MiniMapShapes::Arrow:
-                nvgArrow(rect.xyz.xy, size, dir, rotateAroundDir, col);
+                nvgArrow(pxPos, size, dir, rotateAroundDir, col);
             break;
             case MiniMapShapes::TriArrow:
-                nvgTriArrow(rect.xyz.xy, size, dir, rotateAroundDir, col);
+                nvgTriArrow(pxPos, size, dir, rotateAroundDir, col);
             break;
             case MiniMapShapes::QuadArrow:
-                nvgQuadArrow(rect.xyz.xy, size, dir, rotateAroundDir, col);
+                nvgQuadArrow(pxPos, size, dir, rotateAroundDir, col);
             break;
             case MiniMapShapes::Square:
             default:
-                nvg::Rect(rect.x, rect.y, size, size);
+                nvg::Rect(pxPos.x - size / 2., pxPos.y - size / 2., size, size);
             break;
         }
         bool noFill = shape == MiniMapShapes::Ring || false;

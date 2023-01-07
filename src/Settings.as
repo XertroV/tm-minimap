@@ -1,20 +1,22 @@
 [Setting category="MiniMap" name="Enable Minimap" description="When unchecked, the minimap can only be enabled via the 'Scripts' menu."]
 bool S_MiniMapEnabled = true;
 
-[Setting category="MiniMap" name="Show Player Names" description="Draws player, similar to having opponents+names on during a race."]
+[Setting category="MiniMap" name="Show Player Names" description="Draws player names, similar to having opponents+names on during a race."]
 bool S_DrawPlayerNames = true;
 
-[Setting category="MiniMap" name="Player Name Font Size"]
-float S_PlayerName_FontSize = 16.;
+[Setting category="MiniMap" name="Player Name Font Size" min="4" max="32" description="This will be larger than you expect."]
+float S_PlayerName_FontSize = 8.;
+
+[Setting category="MiniMap" name="Show Player Names on Small Minimap"]
+bool S_DrawPlayerNamesInSmall = false;
 
 
-
-[Setting category="MiniMap" name="Map Size (px)" description="Size of the minimap" min="100" max="1000"]
+[Setting category="MiniMap" name="Map Size (px, height)" description="Size of the minimap" min="100" max="1000"]
 uint S_MiniMapSize = 0;
 
 uint InitMiniMapSize() { return  Draw::GetHeight() / 3; }
 
-[Setting category="MiniMap" name="Big Map Size (px)" description="Size of the minimap when it is in 'big' mode" min="100" max="3000"]
+[Setting category="MiniMap" name="Big Map Size (px, height)" description="Size of the minimap when it is in 'big' mode" min="100" max="3000"]
 uint S_BigMiniMapSize = 0;
 
 [Setting category="MiniMap" name="Grid Partitions" description="How many partitions to break the minimap grid up into along X/Y axes. Worst case O(n^2) complexity: higher values => much higher performance cost. Example render times: 160: ~10ms, 80: 4.1ms, 40: 1.6ms, 20: <1.0ms" min="20" max="200"]
@@ -110,6 +112,12 @@ bool S_DisableBackgroundImages = false;
 
 [Setting category="Bg Image Settings" name="BG Alpha" min="0.0" max="1.0"]
 float S_BgImageAlpha = 0.5;
+
+[Setting category="Bg Image Settings" name="Focus Mode when small" description="This will show only the region of the map that the players currently occupy, so it's 'zoomed in' as such. Only in small mode."]
+bool S_FocusModeSmall = true;
+
+[Setting category="Bg Image Settings" name="Focus mode padding" min="1" max="50.0" description="Padding in % of the map to show around the focused players."]
+float S_FocusModePadding = 12.5;
 
 
 

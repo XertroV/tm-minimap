@@ -30,10 +30,13 @@ bool get_IsEditorConditionCheckOkay() {
     return S_AllowInEditor || GetApp().Editor is null || int(ScreenShot::currStage) > 0;
 }
 
-void Update(float dt) {
+void RenderEarly() {
     if (S_MiniMapEnabled)
-        MiniMap::UpdateMiniMap(dt);
+        MiniMap::UpdateMiniMap();
 }
+
+// void Update(float dt) {
+// }
 
 /** Render function called every frame intended only for menu items in `UI`.
 */
