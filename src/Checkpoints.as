@@ -5,6 +5,7 @@ enum CpType {
 CpType TagToType(const string &in tag) {
     if (tag == "Spawn") return CpType::Spawn;
     if (tag == "Goal") return CpType::Goal;
+    if (tag == "StartFinish") return CpType::Goal;
     return CpType::Checkpoint;
 }
 
