@@ -307,7 +307,7 @@ namespace MiniMap {
     void CalcZoomFactor() {
         auto lastZoomF = zoomFactor;
         auto lastZoomAround = pxZoomAround;
-        vec2 aspectVec = vec2(mws.aspectRatio, 1.);
+        vec2 aspectVec = vec2(mws is null ? 1. : mws.aspectRatio, 1.);
         // for use with a bg image in small mode
         if (!mmIsScreenShot || mws is null || playerPositions.Length == 0 || !S_FocusModeSmall) {
             zoomFactor = 1.;
@@ -719,7 +719,7 @@ namespace MiniMap {
         vec2 pxPos = rect.xyz.xy;
 
         // apply zoom
-        if (S_FocusModeSmall && !bigMiniMap && zoomFactor != 1.) {
+        if (S_FocusModeSmall && !bigMiniMap && zoomFactor != 1. && mws !is null) {
             // in this mode, we don't draw objects outside the MM bounds
             auto uv = pos / vec2(mws.aspectRatio, 1.);
             pxPos = (pxToZoomedPx * pxPos).xy;
