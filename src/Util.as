@@ -13,3 +13,11 @@ vec4 F4Vec(float f) {
 vec2 GetScreenWH() {
     return vec2(Draw::GetWidth(), Draw::GetHeight());
 }
+
+void AddSimpleTooltip(const string &in msg) {
+    if (UI::IsItemHovered()) {
+        UI::BeginTooltip();
+        UI::Text(msg);
+        UI::EndTooltip();
+    }
+}

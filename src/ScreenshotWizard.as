@@ -73,6 +73,8 @@ namespace ScreenShot {
         mapUid = "";
         mapName = "";
         @screenshotImage = null;
+        zClipLimit = 50000;
+        nearZClip = 0.05;
     }
 
     void Main() {
@@ -119,6 +121,8 @@ namespace ScreenShot {
     vec2 m_padding = vec2(5, 5);
     [Setting hidden]
     vec3 m_offset = vec3(0, 0, 0);
+    float zClipLimit = 50000;
+    float nearZClip = 0.05;
 
     float AspectRatio {
         get {
@@ -212,6 +216,14 @@ namespace ScreenShot {
 
     void Render() {
         RenderWizardInner();
+        auto cam = Camera::GetCurrent();
+        if (cam is null) return;
+        if (uint(currStage) -5 < 3) {
+            Camera::GetCurrent().FarZ = zClipLimit;
+        } else if (currStage > WizStage::TakingScreenShot) {
+            // default is 50k
+            Camera::GetCurrent().FarZ = 50000;
+        }
     }
 
     bool RenderWizardInner() {
@@ -573,15 +585,32 @@ namespace ScreenShot {
         auto origCH = CameraHeight;
         auto origPadding = m_padding;
         auto origFov = cameraFov;
+        auto origFar = zClipLimit;
+        auto origNear = nearZClip;
         // the default zclip distance is 50000; though it can be changed (camera property from memory).
         // set max to 50k tho to be safe
         CameraHeight = UI::SliderFloat("Cam Height", CameraHeight, 1000., 50000., "%.0f");
+        zClipLimit = UI::InputFloat("Far Z-Clip", zClipLimit, 64.);
+        AddSimpleTooltip("Will not be visible in the preview, but works for the screenshot.");
+        UI::SameLine(); if (UI::Button(Icons::Refresh + "##reset zclip")) zClipLimit = 50000;
+        UI::SameLine();
+        if (UI::Button("Set to cam height##far")) {
+            zClipLimit = CameraHeight;
+        }
+        nearZClip = UI::InputFloat("Near Z-Clip", nearZClip, 64.);
+        UI::SameLine(); if (UI::Button(Icons::Refresh + "##reset near zclip")) nearZClip = 0.05;
+        UI::SameLine();
+        if (UI::Button("Set to cam height##near")) {
+            nearZClip = CameraHeight;
+        }
         m_padding = UI::SliderFloat2("Edge Padding (x,y %)", m_padding, -50., 100., "%.1f");
         UI::SameLine();
         if (UI::Button(Icons::Refresh + "##reset-padding")) m_padding = vec2(5, 5);
 
+        bool changed = zClipLimit != origFar || nearZClip != origNear;
+        changed = changed || origCH != CameraHeight || !Vec2Eq(m_padding, origPadding) || cameraFov != origFov;
         // cameraFov = Math::Clamp(UI::InputFloat("Cam FoV", cameraFov, 0.1), 0.1, 90.);
-        if (origCH != CameraHeight || !Vec2Eq(m_padding, origPadding) || cameraFov != origFov) {
+        if (changed) {
             UpdateMatricies();
             requestAutoUpdate = m_autoUpdateCamera;
         }
@@ -887,7 +916,7 @@ namespace ScreenShot {
         SetControlEntryValue(fov, FmtFloat(cameraFov));
 
         auto ncp = GetOverlayElementAtPath(14, {0, 4, 0, 2, 10, 0, 0});
-        SetControlEntryValue(ncp, "0.05");
+        SetControlEntryValue(ncp, FmtFloat(nearZClip));
     }
 
     string FmtFloat(float v) {
