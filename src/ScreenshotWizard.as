@@ -618,6 +618,7 @@ namespace ScreenShot {
 
     void ShowShotPreviewOutline() {
         auto cam = Camera::GetCurrent();
+        if (cam is null) return;
         vec2 screen = vec2(Draw::GetWidth(), Draw::GetHeight());
         vec2 uvTL = vec2(-cam.DrawRectMin.x, -cam.DrawRectMax.y);
         vec2 uvBR = vec2(-cam.DrawRectMax.x, -cam.DrawRectMin.y);
@@ -661,9 +662,9 @@ namespace ScreenShot {
     }
 
     void DrawTestPointMarker(vec3 p, vec4 col = vec4(.9, .5, 0, .9)) {
-        auto uvz = Camera::ToScreen(p);
-
         auto cam = Camera::GetCurrent();
+        if (cam is null) return;
+        auto uvz = Camera::ToScreen(p);
         vec2 screen = vec2(Draw::GetWidth(), Draw::GetHeight());
         vec2 uvTL = vec2(-cam.DrawRectMax.x, -cam.DrawRectMax.y);
         vec2 uvBR = vec2(-cam.DrawRectMin.x, -cam.DrawRectMin.y);
@@ -686,6 +687,14 @@ namespace ScreenShot {
         nvg::ClosePath();
     }
 
+
+    // void DrawSetMidday() {
+    //     if (UI::Button("Set time to midday")) {
+    //         // auto api = cast<CGameEditorMediaTrackerPluginAPI>(cast<CGameEditorMediaTracker>(GetApp().Editor).PluginAPI);
+    //         auto editor = cast<CGameCtnEditorFree>(GetApp().Switcher.ModuleStack[0]);
+    //         editor.MoodTimeOfDay01 = 0.5;
+    //     }
+    // }
 
 
 
