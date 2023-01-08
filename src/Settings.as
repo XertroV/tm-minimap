@@ -127,6 +127,9 @@ bool S_FocusModeSmall = true;
 [Setting category="Bg Image Settings" name="Focus mode padding" min="1" max="50.0" description="Padding in % of the map to show around the focused players."]
 float S_FocusModePadding = 12.5;
 
+[Setting category="Bg Image Settings" name="Focus mode: just me" description="This will focus just on you (or the spectated player) in focus mode."]
+bool S_FocusModeJustMe = false;
+
 
 
 [SettingsTab name="Bg Image Wizard" icon="PictureO"]

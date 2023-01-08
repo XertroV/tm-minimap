@@ -270,6 +270,8 @@ namespace MiniMap {
         auto cp = cast<CSmArenaClient>(GetApp().CurrentPlayground);
         if (scene is null || cp is null) return;
         auto viss = VehicleState::GetAllVis(scene);
+        CSmPlayer@ viewingPlayer = VehicleState::GetViewingPlayer();
+        int viewingIx = -1;
         if (viss.Length == 0) return;
         playerDirs.Resize(viss.Length);
         playerUps.Resize(viss.Length);
@@ -286,6 +288,9 @@ namespace MiniMap {
                 skipped++;
             } else {
                 ObservePlayer(ix - skipped, vis, player);
+                if (S_FocusModeJustMe && viewingPlayer !is null && player.Id.Value == viewingPlayer.Id.Value) {
+                    viewingIx = ix - skipped;
+                }
             }
         }
         ix -= skipped;
@@ -295,6 +300,11 @@ namespace MiniMap {
             ObservePlayer(ix, vis, null);
             ix++;
         }
+
+        if (S_FocusModeJustMe && viewingIx >= 0) {
+            UpdateMinMaxPlayerGridPos(0, playerGridPositions[viewingIx]);
+        }
+
         CalcZoomFactor();
     }
 
@@ -572,8 +582,8 @@ namespace MiniMap {
             if (vis is null) continue;
             auto team = player.EdClan;
             auto col = GetPlayerColForTeam(team);
-            DrawMarkerAt(WorldToGridPosF(vis.AsyncState.Position), vis.AsyncState.Dir, vis.AsyncState.Up, col, S_Player_Shape, S_Player_Size);
-            if (S_DrawPlayerNames && (bigMiniMap || S_DrawPlayerNamesInSmall))
+            bool drewPlayer = DrawMarkerAt(WorldToGridPosF(vis.AsyncState.Position), vis.AsyncState.Dir, vis.AsyncState.Up, col, S_Player_Shape, S_Player_Size);
+            if (S_DrawPlayerNames && drewPlayer && (bigMiniMap || S_DrawPlayerNamesInSmall))
                 DrawPlayerName(vis, player);
         }
     }
@@ -701,7 +711,7 @@ namespace MiniMap {
         }
     }
 
-    void DrawMarkerAt(vec2 pos, vec3 dir, vec3 up, vec4 col, MiniMapShapes shape, float size) {
+    bool DrawMarkerAt(vec2 pos, vec3 dir, vec3 up, vec4 col, MiniMapShapes shape, float size) {
         size *= sizeZoom;
         // if there is no xz component to the direction vector.
         if (dir.x == dir.z && dir.z == 0) {
@@ -725,12 +735,11 @@ namespace MiniMap {
             pxPos = (pxToZoomedPx * pxPos).xy;
             auto lims = tl + wh;
             if (pxPos.x < tl.x - size || pxPos.y < tl.y - size || pxPos.x > lims.x + size || pxPos.y > lims.y + size)
-                return;
+                return false;
         }
 
         nvg::Reset();
         nvg::BeginPath();
-        auto dir2 = vec2(dir.x, dir.z);
         switch (shape) {
             case MiniMapShapes::Circle:
             case MiniMapShapes::Ring:
@@ -753,6 +762,7 @@ namespace MiniMap {
         bool noFill = shape == MiniMapShapes::Ring || false;
         nvgIndicatorStrokeFill(col, !noFill);
         nvg::ClosePath();
+        return true;
     }
 
     float get_BaseScaleFactor() {
