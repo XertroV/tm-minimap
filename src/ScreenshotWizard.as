@@ -216,13 +216,17 @@ namespace ScreenShot {
 
     void Render() {
         RenderWizardInner();
-        auto cam = Camera::GetCurrent();
-        if (cam is null) return;
-        if (uint(currStage) -5 < 3) {
-            Camera::GetCurrent().FarZ = zClipLimit;
-        } else if (currStage > WizStage::TakingScreenShot) {
-            // default is 50k
-            Camera::GetCurrent().FarZ = 50000;
+    }
+
+    void SetZClipFar() {
+        auto vp = GetApp().Viewport;
+        bool setZClip = currStage >= WizStage::InMediaTracker;
+        if (!setZClip) return;
+        auto doneWithScreenshot = currStage >= WizStage::ConfirmScreenShot;
+        float farZ = doneWithScreenshot ? 50000 : zClipLimit;
+        for (uint i = 0; i < vp.Cameras.Length; i++) {
+            auto cam = vp.Cameras[i];
+            cam.FarZ = farZ;
         }
     }
 

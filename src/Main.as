@@ -33,6 +33,8 @@ bool get_IsEditorConditionCheckOkay() {
 void RenderEarly() {
     if (S_MiniMapEnabled)
         MiniMap::UpdateMiniMap();
+    // set zclip exist early when not in the wizard
+    ScreenShot::SetZClipFar();
 }
 
 // void Update(float dt) {
