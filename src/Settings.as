@@ -44,8 +44,8 @@ VirtualKey S_ShortcutKey = VirtualKey::M;
 [Setting hidden]
 int S_MiniMapState = 1; // 0=off, 1=small, 2=big
 
-[Setting category="MiniMap" name="Update When Hidden?" description="Keep track of players locations when the minimap is hidden? (Low performance impact; ~0.2ms / frame with 30 players.)"]
-bool S_UpdateWhenHidden = true;
+[Setting category="MiniMap" name="Update When Hidden?" description="Keep track of players locations when the minimap is hidden? (Low-Mid performance impact; ~1ms / frame with 30 players.)"]
+bool S_UpdateWhenHidden = false;
 
 
 [Setting category="Appearance" name="Name Tag Font"]

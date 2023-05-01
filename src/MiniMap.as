@@ -248,8 +248,8 @@ namespace MiniMap {
         playerScreenPositions[i] = GetMMPosRect(gridPos).xyz.xy;
         if (!mmIsScreenShot) {
             ObservePlayerInWorld(gridPos);
-            UpdateMinMaxPlayerGridPos(i, gridPos);
         }
+        UpdateMinMaxPlayerGridPos(i, gridPos);
     }
 
     vec2 minPlayerGridPos, maxPlayerGridPos;
