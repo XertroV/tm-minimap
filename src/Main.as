@@ -60,8 +60,8 @@ UI::InputBlocking OnKeyPress(bool down, VirtualKey key) {
     if (S_MiniMapEnabled && key == S_ShortcutKey && down && IsEditorConditionCheckOkay && GetApp().CurrentPlayground !is null) {
         S_MiniMapState = (S_MiniMapState + 1) % 3; // off, small, big
         if (S_DisableSmallMinimap && S_MiniMapState == 1) S_MiniMapState = 2;
-        if (S_DisableBigMinimap && S_MiniMapState == 2) S_MiniMapState = 1;
-        if (S_DisableBigMinimap && S_DisableSmallMinimap && S_MiniMapState != 0) {
+        if (S_DisableBigMinimap && S_MiniMapState == 2) S_MiniMapState = 0;
+        if (S_DisableBigMinimap && S_DisableSmallMinimap) {
             Notify("Conflicting settings: both big and small minimap is disabled.");
             S_MiniMapState = 0;
         }
