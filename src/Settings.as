@@ -111,6 +111,9 @@ bool S_AllowInEditor = false;
 [Setting category="Advanced" name="Disable small minimap?" description="The minimap will toggle between large and off only."]
 bool S_DisableSmallMinimap = false;
 
+[Setting category="Advanced" name="Disable big minimap?" description="The minimap will toggle between small and off only."]
+bool S_DisableBigMinimap = false;
+
 [Setting category="Advanced" name="Disable BG Images (Grid view only)" description="Disable background images even if they're found -- useful for testing."]
 bool S_DisableBackgroundImages = false;
 
