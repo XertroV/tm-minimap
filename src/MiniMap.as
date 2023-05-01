@@ -12,8 +12,6 @@ namespace MiniMap {
     MapWithScreenshot@ mws;
     nvg::Texture@ mmBgTexture;
 
-    auto playerNameFont = nvg::LoadFont("", false, true);
-
     void ClearMiniMapState() {
         exceptionsWarned = 0;
         mmStateInitialized = false;
@@ -107,8 +105,8 @@ namespace MiniMap {
         // it must be non-zero anyway, so pad it out to guarentee it,
         // and also to provide a minimum minimap size.
         if (((max - min) * vec3(1, 0, 1)).LengthSquared() < 10000) {
-            max += vec3(50, 0, 50);
-            min -= vec3(50, 0, 50);
+            max += vec3(16, 0, 16);
+            min -= vec3(16, 0, 16);
         }
 
         // add a small amount of padding (sometimes the map route goes outside the cp bounding box)
@@ -616,7 +614,7 @@ namespace MiniMap {
         auto bgCol = GetPlayerNameBgColForTeam(team);
         float fs = S_PlayerName_FontSize * ScaleFactor * sizeZoom;
         nvg::FontSize(fs);
-        nvg::FontFace(playerNameFont);
+        nvg_SetFontFaceChoice();
         nvg::TextAlign(nvg::Align::Center | nvg::Align::Middle);
         auto bounds = nvg::TextBounds(name);
         auto playerPos = GetMMPosRect(WorldToGridPosF(vis.AsyncState.Position)).xyz.xy;

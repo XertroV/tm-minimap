@@ -48,6 +48,8 @@ int S_MiniMapState = 1; // 0=off, 1=small, 2=big
 bool S_UpdateWhenHidden = true;
 
 
+[Setting category="Appearance" name="Name Tag Font"]
+FontChoice S_NameTagFont = FontChoice::Montserrat_SemiBoldItalic;
 
 [Setting category="Appearance" name="Big MiniMap BG Color" color]
 vec4 S_BigBg_Color = vec4(0.0f, 0.0f, 0.0f, .2f);
