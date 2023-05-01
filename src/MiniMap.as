@@ -142,6 +142,7 @@ namespace MiniMap {
         if (!IsEditorConditionCheckOkay) return;
         if (!mmStateInitialized) return;
         if (!S_UpdateWhenHidden && S_MiniMapState == 0) return;
+        if (S_MiniMapState == 0 && mmIsScreenShot) return;
         PrepMinMapVars();
         try {
             ObservePlayers();
@@ -245,8 +246,10 @@ namespace MiniMap {
         auto gridPos = WorldToGridPosF(vis.AsyncState.Position);
         playerGridPositions[i] = gridPos;
         playerScreenPositions[i] = GetMMPosRect(gridPos).xyz.xy;
-        ObservePlayerInWorld(gridPos);
-        UpdateMinMaxPlayerGridPos(i, gridPos);
+        if (!mmIsScreenShot) {
+            ObservePlayerInWorld(gridPos);
+            UpdateMinMaxPlayerGridPos(i, gridPos);
+        }
     }
 
     vec2 minPlayerGridPos, maxPlayerGridPos;
@@ -256,10 +259,10 @@ namespace MiniMap {
             minPlayerGridPos = gridPos;
             maxPlayerGridPos = gridPos;
         } else {
-            minPlayerGridPos.x = Math::Min(gridPos.x, minPlayerGridPos.x);
-            minPlayerGridPos.y = Math::Min(gridPos.y, minPlayerGridPos.y);
-            maxPlayerGridPos.x = Math::Max(gridPos.x, maxPlayerGridPos.x);
-            maxPlayerGridPos.y = Math::Max(gridPos.y, maxPlayerGridPos.y);
+            if (gridPos.x < minPlayerGridPos.x) minPlayerGridPos.x = gridPos.x;
+            if (gridPos.y < minPlayerGridPos.y) minPlayerGridPos.y = gridPos.y;
+            if (gridPos.x > maxPlayerGridPos.x) maxPlayerGridPos.x = gridPos.x;
+            if (gridPos.y > maxPlayerGridPos.y) maxPlayerGridPos.y = gridPos.y;
         }
     }
 
