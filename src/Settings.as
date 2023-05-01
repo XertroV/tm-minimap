@@ -122,7 +122,7 @@ bool S_ShowDebugShapesFocusMode = false;
 
 
 [Setting category="Bg Image Settings" name="BG Alpha" min="0.0" max="1.0"]
-float S_BgImageAlpha = 0.5;
+float S_BgImageAlpha = 0.85;
 
 [Setting category="Bg Image Settings" name="Focus Mode when small" description="This will show only the region of the map that the players currently occupy, so it's 'zoomed in' as such. Only in small mode."]
 bool S_FocusModeSmall = true;
@@ -130,7 +130,7 @@ bool S_FocusModeSmall = true;
 [Setting category="Bg Image Settings" name="Focus mode padding" min="1" max="50.0" description="Padding in % of the map to show around the focused players."]
 float S_FocusModePadding = 12.5;
 
-[Setting category="Bg Image Settings" name="Focus mode: just me" description="This will focus just on you (or the spectated player) in focus mode."]
+[Setting category="Bg Image Settings" name="Focus mode: just me" description="This will focus just on you (or the spectated player) in focus mode. Otherwise it focuses on all players."]
 bool S_FocusModeJustMe = false;
 
 

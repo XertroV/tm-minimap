@@ -669,19 +669,7 @@ namespace ScreenShot {
         auto cam = Camera::GetCurrent();
         if (cam is null) return;
         auto uvz = Camera::ToScreen(p);
-        vec2 screen = vec2(Draw::GetWidth(), Draw::GetHeight());
-        vec2 uvTL = vec2(-cam.DrawRectMax.x, -cam.DrawRectMax.y);
-        vec2 uvBR = vec2(-cam.DrawRectMin.x, -cam.DrawRectMin.y);
-        vec2 tlCam = (uvTL / 2. + vec2(.5, .5)) * screen;
-        vec2 brCam = (uvBR / 2. + vec2(.5, .5)) * screen;
-
-        vec2 totalPx = (brCam - tlCam);
-        totalPx.x = Math::Abs(totalPx.x);
-        mat3 toCamSmall = mat3::Translate(tlCam) * mat3::Scale(totalPx / screen);
-        vec2 pos = (toCamSmall * uvz.xy).xy;
-        // print(tlCam.ToString());
-        // print(brCam.ToString());
-        // print(pos.ToString());
+        vec2 pos = uvz.xy;
 
         nvg::BeginPath();
         nvg::Circle(pos, 5.);
