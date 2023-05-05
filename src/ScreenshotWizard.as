@@ -115,10 +115,10 @@ namespace ScreenShot {
     }
 
     mat4 rotation, perspective, translation, projection;
+
     [Setting hidden]
     float CameraHeight = 30000.;
-    // [Setting hidden]
-    vec2 m_padding = vec2(5, 5);
+
     [Setting hidden]
     vec3 m_offset = vec3(0, 0, 0);
     float zClipLimit = 50000;
@@ -161,13 +161,13 @@ namespace ScreenShot {
 
     void SearchForFoVAndSetProjection() {
         auto mapSize = mapMax - mapMin;
-        vec3 pad = vec3(mapSize.x * m_padding.x, 0, mapSize.z * m_padding.y) / 100.;
+        vec3 pad = vec3(mapSize.x * edgePadding.x, 0, mapSize.z * edgePadding.y) / 100.;
         auto minTest = mapMin - pad - m_offset;
         auto maxTest = mapMax + pad - m_offset;
         maxTest.y = minTest.y;
         float fovUpper = 180.;
         float fovLower = 0.1;
-        cameraFov = Math::Clamp(cameraFov, fovLower, fovUpper);
+        cameraFov = Math::Clamp(cameraFov, fovLower, (fovUpper - 1.));
         auto origFov = cameraFov;
         CalcProjectionMatricies(cameraFov);
         uint count = 0;
@@ -178,8 +178,14 @@ namespace ScreenShot {
             } else {
                 fovLower = cameraFov;
             }
+
+            if (fovUpper == fovLower) {
+                warn("fov not found; upper == lower");
+                break;
+            }
+
             cameraFov = (fovUpper + fovLower) / 2.;
-            // print("new fov: " + cameraFov);
+            print("new fov: " + cameraFov);
             CalcProjectionMatricies(cameraFov);
             if (count > 40) {
                 warn("SearchForFoVAndSetProjection looped too much; breaking");
@@ -516,7 +522,7 @@ namespace ScreenShot {
             m_offset = vec3();
             m_Rotation = 0;
             camPitch = -90;
-            m_padding = vec2(5, 5);
+            edgePadding = vec2(5, 5);
             UpdateMatricies();
             requestAutoUpdate = m_autoUpdateCamera;
         }
@@ -589,7 +595,7 @@ namespace ScreenShot {
         //     UpdateMatricies();
         // }
         auto origCH = CameraHeight;
-        auto origPadding = m_padding;
+        auto origPadding = edgePadding;
         auto origFov = cameraFov;
         auto origFar = zClipLimit;
         auto origNear = nearZClip;
@@ -609,20 +615,26 @@ namespace ScreenShot {
         if (UI::Button("Set to cam height##near")) {
             nearZClip = CameraHeight;
         }
-        // auto inPadding = MathX::Clamp(m_padding, -50., 100.);
-        // m_padding = UI::SliderFloat2("Edge Padding (x,y pct)", m_padding, -50., 100., "%.2f");
-        // m_padding = MathX::Clamp(m_padding, -50.0, 100.0);
-        m_padding = UI::InputFloat2("Edge Padding (x,y pct)", m_padding);
-        // if (!Vec2Eq(m_padding, inPadding)) {
-        //     trace('mismatching in/out padding: ' + m_padding.ToString() + ' vs. orig: ' + inPadding.ToString());
-        // } else {
-        //     trace('matching in/out padding: ' + m_padding.ToString() + ' vs. orig: ' + inPadding.ToString());
-        // }
+
+        if (S_DrawEdgePaddingControls) {
+            // the slider float 2 is broken in some very odd way
+            if (S_DrawBuggedEdgePaddingControls) {
+                edgePadding = UI::SliderFloat2("Edge Padding (x,y pct)", origPadding, -50., 100., "%.1f");
+            } else {
+                edgePadding.x = UI::SliderFloat("Edge Padding (x, pct)", origPadding.x, -50., 100, "%.1f");
+                edgePadding.y = UI::SliderFloat("Edge Padding (y, pct)", origPadding.y, -50., 100, "%.1f");
+            }
+            // if (!Vec2Eq(edgePadding, origPadding)) {
+            //     trace('mismatching in/out padding: ' + edgePadding.ToString() + ' vs. orig: ' + origPadding.ToString());
+            // } else {
+            //     trace('matching in/out padding: ' + edgePadding.ToString() + ' vs. orig: ' + origPadding.ToString());
+            // }
+        }
         UI::SameLine();
-        if (UI::Button(Icons::Refresh + "##reset-padding")) m_padding = vec2(5, 5);
+        if (UI::Button(Icons::Refresh + "##reset-edge-padding")) edgePadding = vec2(5, 5);
 
         bool changed = zClipLimit != origFar || nearZClip != origNear;
-        changed = changed || origCH != CameraHeight || !Vec2Eq(m_padding, origPadding) || cameraFov != origFov;
+        changed = changed || origCH != CameraHeight || !Vec2Eq(edgePadding, origPadding) || cameraFov != origFov;
         // cameraFov = Math::Clamp(UI::InputFloat("Cam FoV", cameraFov, 0.1), 0.1, 90.);
         if (changed) {
             UpdateMatricies();
@@ -760,10 +772,14 @@ namespace ScreenShot {
             throw("Should not call OnClickEnterMediaTracker without adv map editor permissions.");
             return;
         }
+        trace('clicking ButtonReplay');
         FindAndClickEditorButton("ButtonReplay");
+        trace('clicked ButtonReplay');
         yield();
         auto app = cast<CGameManiaPlanet>(GetApp());
+        trace('clicking edit intro');
         app.MenuManager.DialogEditCutScenes_OnIntroEdit();
+        trace('clicked edit intro');
         AdvanceStep();
         UpdateMatricies();
     }
@@ -888,6 +904,11 @@ namespace ScreenShot {
                 warn("cannot find custom camera track");
                 return;
             }
+        }
+
+        if (api.Clip.Tracks.Length < 1) {
+            // nothing to update
+            return;
         }
 
         // we will go through the overlays to find the specific properties to modify
@@ -1022,8 +1043,8 @@ namespace ScreenShot {
         j['aspect'] = int(S_Wiz_Aspect);
         j['rotation'] = m_Rotation;
         j['camPitch'] = camPitch;
-        j['padding.x'] = m_padding.x;
-        j['padding.y'] = m_padding.y;
+        j['padding.x'] = edgePadding.x;
+        j['padding.y'] = edgePadding.y;
         j['offset.x'] = m_offset.x;
         j['offset.y'] = m_offset.y;
         j['offset.z'] = m_offset.z;
@@ -1075,7 +1096,7 @@ bit useless tho b/c we can just use the shoot params obj.
 
 
 bool Vec2Eq(vec2 a, vec2 b) {
-    return a.x == b.x && a.y == b.y;
+    return (a - b).LengthSquared() < 0.00001;
 }
 
 bool Vec3Eq(vec3 a, vec3 b) {

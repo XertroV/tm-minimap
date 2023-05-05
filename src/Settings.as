@@ -125,6 +125,15 @@ bool S_CreateColorsFXTrackInWizard = true;
 [Setting category="Advanced" name="[Focus mode] Show debug shapes"]
 bool S_ShowDebugShapesFocusMode = false;
 
+[Setting category="Advanced" name="[Debug] Draw Edge Padding UI controls in Wizard?"]
+bool S_DrawEdgePaddingControls = true;
+
+[Setting category="Advanced" name="[Debug] Draw Bugged Edge Padding UI controls in Wizard?"]
+bool S_DrawBuggedEdgePaddingControls = false;
+
+[Setting category="Advanced" name="[Wizard] Edge Padding (x,y pct)" min=-50 max=100 drag]
+vec2 edgePadding = vec2(5, 5);
+
 
 [Setting category="Bg Image Settings" name="BG Alpha" min="0.0" max="1.0"]
 float S_BgImageAlpha = 0.85;
