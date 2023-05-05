@@ -11,10 +11,20 @@ class MapWithScreenshot {
     MapWithScreenshot(const string &in uid, const string &in imgPath, const string &in jsonPath) {
         this.imgPath = imgPath;
         this.jsonPath = jsonPath;
-        @j = Json::FromFile(jsonPath);
+        mapUid = uid;
+        LoadFromJson(Json::FromFile(jsonPath));
+        // @j = Json::FromFile(jsonPath);
         // mapUid = j['uid'];
         // don't set the UID from the JSON so that we can easily rename files
-        mapUid = uid;
+    }
+
+    // used for dev to preview CP positions and stuff
+    MapWithScreenshot(Json::Value@ jsonData) {
+        LoadFromJson(jsonData);
+    }
+
+    void LoadFromJson(Json::Value@ jsonData) {
+        @j = jsonData;
         mapName = j['name'];
         mapAuthor = j.Get('author', "Unknown");
         padding = vec2(j['padding.x'], j['padding.y']);

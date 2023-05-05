@@ -455,9 +455,29 @@ namespace ScreenShot {
         if (screenshotImage is null) {
             UI::Text("Loading image...");
         } else {
-            UI::Image(screenshotImage, vec2(shotRes.x, shotRes.y) / float(shotRes.y) * (Draw::GetHeight() / 2.));
+            auto windowPos = UI::GetWindowPos();
+            auto cursorPos = UI::GetCursorPos();
+
+            auto imgTL = windowPos + cursorPos;
+            auto imgSize = vec2(shotRes.x, shotRes.y) / float(shotRes.y) * (Draw::GetHeight() / 2.);
+
+            UI::Image(screenshotImage, imgSize);
+            if (cpData !is null && tmpMWSForDebug !is null) {
+                if (drawDotHelpers) {
+                    auto dl = UI::GetWindowDrawList();
+                    for (uint i = 0; i < cpData.positions.Length; i++) {
+                        auto uv = (tmpMWSForDebug.ProjectPoint(cpData.positions[i]) + vec2(1.)) / 2.;
+                        // uv.x = uv.x * tmpMWSForDebug.aspectRatio;
+                        auto pointLocal = uv * imgSize;
+                        dl.AddCircleFilled(imgTL + pointLocal, 10., vec4(1, 0, 0, 1));
+                    }
+                }
+                UI::Text("Note: the red dots shown should line up with the CPs.");
+                drawDotHelpers = UI::Checkbox("Draw dot helpers", drawDotHelpers);
+            }
         }
     }
+    bool drawDotHelpers = true;
 
     void RenderComplete() {
         UI::Text("Done!");
@@ -739,6 +759,7 @@ namespace ScreenShot {
 
     // vec3[]@ cpPositions;
     vec3 mapMin, mapMax;
+    CpPositionData@ cpData;
 
     vec3 mapMaxGround {
         get {
@@ -761,6 +782,7 @@ namespace ScreenShot {
         while (!MiniMap::mmStateInitialized) yield();
         // @cpPositions = MiniMap::cpPositions;
         // extend bounds by a standard block size
+        @cpData = MiniMap::cpPositions;
         mapMin = MiniMap::rawMin;
         mapMax = MiniMap::rawMax + vec3(32, 8, 32);
         trace('cached cp positions and stuff');
@@ -1058,7 +1080,10 @@ namespace ScreenShot {
         return e * -1.;
     }
 
+    MapWithScreenshot@ tmpMWSForDebug;
+
     void OnScreenShotSaved() {
+        @tmpMWSForDebug = MapWithScreenshot(PrepareMapJsonData());
         AdvanceStep();
         startnew(RefreshMapsWithScreenshots);
         // @screenshotImage = UI::LoadTexture(CurrScreenShotFilePath);
@@ -1085,7 +1110,7 @@ namespace ScreenShot {
         AdvanceStep();
     }
 
-    void SaveMapJsonData() {
+    Json::Value@ PrepareMapJsonData() {
         auto j = Json::Object();
         j['version'] = 1;
         j['name'] = mapName;
@@ -1121,7 +1146,11 @@ namespace ScreenShot {
             j['fov'] = cached_fov;
             print("Config2: " + Json::Write(j));
         }
-        Json::ToFile(DestMapInfoJsonFilePath, j);
+        return j;
+    }
+
+    void SaveMapJsonData() {
+        Json::ToFile(DestMapInfoJsonFilePath, PrepareMapJsonData());
         startnew(RefreshMapsWithScreenshots);
     }
 }
