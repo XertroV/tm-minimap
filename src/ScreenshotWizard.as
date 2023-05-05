@@ -1,7 +1,10 @@
 namespace ScreenShot {
     vec3 cameraPos;
     vec3 cameraPitchYawRoll;
+
+    [Setting hidden]
     float camPitch = -90;
+
     float cameraFov = 10.;
 
     string mapName;
@@ -121,6 +124,7 @@ namespace ScreenShot {
 
     [Setting hidden]
     vec3 m_offset = vec3(0, 0, 0);
+
     float zClipLimit = 50000;
     float nearZClip = 0.05;
 
@@ -363,6 +367,8 @@ namespace ScreenShot {
             startnew(OnClickAutomaticTrackSetup);
         }
         UI::Text("\\$69f" + Icons::InfoCircle +  "\\$z  Note: you might want to play with (or remove) the color FX track.");
+        // manuallyPositionCamera = UI::Checkbox("Manually Position Camera?", manuallyPositionCamera);
+        // AddSimpleTooltip("When checked, the screenshot metadata will use the ");
         UI::Separator();
         UI::AlignTextToFramePadding();
         UI::TextWrapped("Screenshot Parameters:");
@@ -982,6 +988,7 @@ namespace ScreenShot {
     string extName = ".jpg";
 
     void OnClickStartScreenshot() {
+        CacheCurrentCameraValues();
         auto app = GetApp();
         auto editor = cast<CGameEditorMediaTracker>(app.Editor);
         auto api = cast<CGameEditorMediaTrackerPluginAPI>(editor.PluginAPI);
@@ -1005,6 +1012,50 @@ namespace ScreenShot {
         yield();
         shootParams.OnOk();
         AdvanceStep();
+    }
+
+    float cached_fov = -1;
+    vec3 cached_pos = vec3(-99, -99, -99);
+    vec3 cached_angles = vec3(-99, -99, -99);
+
+    void CacheCurrentCameraValues() {
+        auto cam = Camera::GetCurrent();
+        cached_fov = cam.Fov;
+        cached_pos = vec3(cam.Location.tx, cam.Location.ty, cam.Location.tz);
+        // auto up = vec3(cam.Location.xy, cam.Location.yy, cam.Location.zy);
+        // auto dir = vec3(cam.Location.xz, cam.Location.yz, cam.Location.zz);
+        cached_angles = PitchYawRollFromRotationMatrix(
+            mat4::Inverse(mat4::Translate(cached_pos * -1) * mat4(cam.Location))
+        ) * vec3(-1, 1, 1);
+        print("Angles: <"
+            + Math::ToDeg(cached_angles.x) + ", "
+            + Math::ToDeg(cached_angles.y) + ", "
+            + Math::ToDeg(cached_angles.z) + ">"
+        );
+        print("Pos: " + cached_pos.ToString());
+        print("Fov: " + cached_fov);
+
+        print("S_Pos: " + cameraPos.ToString());
+        print("S_Angles: " + vec3(camPitch, m_Rotation, 0).ToString());
+        print("S_Fov: " + cameraFov);
+    }
+
+    // from threejs Euler.js -- order XZY then *-1 at the end
+    vec3 PitchYawRollFromRotationMatrix(mat4 m) {
+        float m11 = m.xx, m12 = m.xy, m13 = m.xz,
+            m21 = m.yx, m22 = m.yy, m23 = m.yz,
+            m31 = m.zx, m32 = m.zy, m33 = m.zz
+        ;
+        vec3 e = vec3();
+        e.z = Math::Asin( - Math::Clamp( m12, -1.0, 1.0 ) );
+        if ( Math::Abs( m12 ) < 0.9999999 ) {
+            e.x = Math::Atan2( m32, m22 );
+            e.y = Math::Atan2( m13, m11 );
+        } else {
+            e.x = Math::Atan2( - m23, m33 );
+            e.y = 0;
+        }
+        return e * -1.;
     }
 
     void OnScreenShotSaved() {
@@ -1041,8 +1092,6 @@ namespace ScreenShot {
         j['uid'] = mapUid;
         j['author'] = mapAuthor;
         j['aspect'] = int(S_Wiz_Aspect);
-        j['rotation'] = m_Rotation;
-        j['camPitch'] = camPitch;
         j['padding.x'] = edgePadding.x;
         j['padding.y'] = edgePadding.y;
         j['offset.x'] = m_offset.x;
@@ -1052,10 +1101,26 @@ namespace ScreenShot {
         j['min.y'] = mapMin.y;
         j['max.x'] = mapMax.x;
         j['max.y'] = mapMax.y;
+
+        // -- use form values
         j['camPos.x'] = cameraPos.x;
         j['camPos.y'] = cameraPos.y;
         j['camPos.z'] = cameraPos.z;
         j['fov'] = cameraFov;
+        j['rotation'] = m_Rotation;
+        j['camPitch'] = camPitch;
+        print("Config1: " + Json::Write(j));
+
+        if (S_UseDetectedCameraMetadata) {
+            // -- use cached values
+            j['rotation'] = Math::ToDeg(cached_angles.y);
+            j['camPitch'] = Math::ToDeg(cached_angles.x);
+            j['camPos.x'] = cached_pos.x;
+            j['camPos.y'] = cached_pos.y;
+            j['camPos.z'] = cached_pos.z;
+            j['fov'] = cached_fov;
+            print("Config2: " + Json::Write(j));
+        }
         Json::ToFile(DestMapInfoJsonFilePath, j);
         startnew(RefreshMapsWithScreenshots);
     }

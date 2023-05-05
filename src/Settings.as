@@ -134,6 +134,10 @@ bool S_DrawBuggedEdgePaddingControls = false;
 [Setting category="Advanced" name="[Wizard] Edge Padding (x,y pct)" min=-50 max=100 drag]
 vec2 edgePadding = vec2(5, 5);
 
+[Setting category="Advanced" name="[Wizard] Detect Camera Position and Rotation details instead of taking it from the form" description="In effect, enabling this setting allows you to move the camera whereever, take a screenshot, and it will just work -- without using the automatic-setup-interface. Disabled by default atm since it might not work in all cases"]
+bool S_UseDetectedCameraMetadata = false;
+
+
 
 [Setting category="Bg Image Settings" name="BG Alpha" min="0.0" max="1.0"]
 float S_BgImageAlpha = 0.85;
@@ -173,6 +177,10 @@ void Render_S_BackgroundImages() {
     }
     UI::SameLine();
     UI::Text("\\$888      Click a UID to copy it.");
+    UI::SameLine();
+    if (UI::Button("Open Directory")) {
+        OpenExplorerPath(IO::FromStorageFolder("bgs/"));
+    }
     // todo: list maps
     if (UI::BeginTable("mws list", 3, UI::TableFlags::SizingStretchProp)) {
         UI::TableSetupColumn("Name");
