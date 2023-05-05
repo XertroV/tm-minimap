@@ -119,6 +119,9 @@ bool S_DisableBigMinimap = false;
 [Setting category="Advanced" name="Disable BG Images (Grid view only)" description="Disable background images even if they're found -- useful for testing."]
 bool S_DisableBackgroundImages = false;
 
+[Setting category="Advanced" name="Create 'Colors FX' track in screenshot wizard"]
+bool S_CreateColorsFXTrackInWizard = true;
+
 [Setting category="Advanced" name="[Focus mode] Show debug shapes"]
 bool S_ShowDebugShapesFocusMode = false;
 

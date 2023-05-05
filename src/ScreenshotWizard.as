@@ -117,7 +117,7 @@ namespace ScreenShot {
     mat4 rotation, perspective, translation, projection;
     [Setting hidden]
     float CameraHeight = 30000.;
-    [Setting hidden]
+    // [Setting hidden]
     vec2 m_padding = vec2(5, 5);
     [Setting hidden]
     vec3 m_offset = vec3(0, 0, 0);
@@ -168,6 +168,7 @@ namespace ScreenShot {
         float fovUpper = 180.;
         float fovLower = 0.1;
         cameraFov = Math::Clamp(cameraFov, fovLower, fovUpper);
+        auto origFov = cameraFov;
         CalcProjectionMatricies(cameraFov);
         uint count = 0;
         while (FovError(minTest, maxTest) > 0.001) {
@@ -182,6 +183,7 @@ namespace ScreenShot {
             CalcProjectionMatricies(cameraFov);
             if (count > 40) {
                 warn("SearchForFoVAndSetProjection looped too much; breaking");
+                // cameraFov = origFov;
                 break;
             }
         }
@@ -607,7 +609,15 @@ namespace ScreenShot {
         if (UI::Button("Set to cam height##near")) {
             nearZClip = CameraHeight;
         }
-        m_padding = UI::SliderFloat2("Edge Padding (x,y %)", m_padding, -50., 100., "%.1f");
+        // auto inPadding = MathX::Clamp(m_padding, -50., 100.);
+        // m_padding = UI::SliderFloat2("Edge Padding (x,y pct)", m_padding, -50., 100., "%.2f");
+        // m_padding = MathX::Clamp(m_padding, -50.0, 100.0);
+        m_padding = UI::InputFloat2("Edge Padding (x,y pct)", m_padding);
+        // if (!Vec2Eq(m_padding, inPadding)) {
+        //     trace('mismatching in/out padding: ' + m_padding.ToString() + ' vs. orig: ' + inPadding.ToString());
+        // } else {
+        //     trace('matching in/out padding: ' + m_padding.ToString() + ' vs. orig: ' + inPadding.ToString());
+        // }
         UI::SameLine();
         if (UI::Button(Icons::Refresh + "##reset-padding")) m_padding = vec2(5, 5);
 
@@ -786,10 +796,12 @@ namespace ScreenShot {
         yield();
         AutoSetUpFog(1, editor);
         yield();
-        api.CreateTrack(CGameEditorMediaTrackerPluginAPI::EMediaTrackerBlockType::FxColors);
-        yield();
-        AutoSetUpFxColors(2, editor);
-        yield();
+        if (S_CreateColorsFXTrackInWizard) {
+            api.CreateTrack(CGameEditorMediaTrackerPluginAPI::EMediaTrackerBlockType::FxColors);
+            yield();
+            AutoSetUpFxColors(2, editor);
+            yield();
+        }
         UpdateMatricies();
         OnClickAutopopulateCamera();
     }
